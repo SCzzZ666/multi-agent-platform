@@ -73,13 +73,13 @@
 | agent-framework-openai==1.18.0 不存在 | 改用 >=1.14.3（版本漂移已记录） |
 | Kimi 404 / 429 过载 | 改模型名 kimi-k3 + 带退避重试 |
 
-### 1.6 Day 1 残留（非阻塞，可后置/与 Day 2 并行）
+### 1.6 Day 1 残留（QA 卡 R1-R5，按 §4 顺序推进）
 
-- [ ] Run/NodeAttempt/RunPlanVersion 落库（当前闭环是内存态）
-- [ ] identity/run 43 表族完整迁移（当前仅 foundation 0001）
-- [ ] 后端最薄主线：发布 Definition→建 Run→202+Operation→SSE
-- [ ] P4 补完：superstep 展示 / HITL / PG Checkpoint 自研存储
-- [ ] git 首次 commit（当前 0 commit）
+- [x] **R5 git 首次 commit** —— ✅ `aba8fc6`，`.env` 已确认不入库（`git ls-files` 无 .env）
+- [x] **R2 43 表族完整迁移** —— ✅ `alembic 0002-0013 (head)`：43 表 + sha256_digest 域 + 6 不可变触发器 + RLS(35) + 索引；种子 8 角色/3 模板；PG18 实测核对通过
+- [ ] **R3 后端最薄主线**：发布 Definition→建 Run→202+Operation→SSE（← 进行中）
+- [ ] R1 Run/NodeAttempt/RunPlanVersion 落库（随 R3 的 workflow_runtime 一并做）
+- [ ] R4 P4 补完：superstep / HITL / PG Checkpoint 自研存储（并行持续项）
 
 ---
 
