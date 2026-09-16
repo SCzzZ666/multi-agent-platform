@@ -1,0 +1,704 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ai-native.local/security/local-execution-patch/1.0/schema.json",
+  "title": "Local Execution and Patch Security Records 1.0",
+  "description": "Internal records for governed local execution, workspace identity and patch application. Host absolute paths and secret values are forbidden.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/executionProfile"
+    },
+    {
+      "$ref": "#/$defs/workspacePathRef"
+    },
+    {
+      "$ref": "#/$defs/runnerRequest"
+    },
+    {
+      "$ref": "#/$defs/patchApplyBinding"
+    },
+    {
+      "$ref": "#/$defs/patchApplyOperation"
+    },
+    {
+      "$ref": "#/$defs/patchJournalEntry"
+    }
+  ],
+  "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "nullableDigest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "credentialRef": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9_.:/-]{0,255}$"
+    },
+    "argumentTemplateItem": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "LITERAL"
+            },
+            "value": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "parameter_key",
+            "value_type",
+            "required",
+            "max_length"
+          ],
+          "properties": {
+            "kind": {
+              "const": "PARAMETER"
+            },
+            "parameter_key": {
+              "$ref": "#/$defs/key"
+            },
+            "value_type": {
+              "enum": [
+                "STRING",
+                "INTEGER",
+                "BOOLEAN",
+                "WORKSPACE_PATH_REF"
+              ]
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "max_length": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "allowed_values": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": [
+                  "string",
+                  "integer",
+                  "boolean"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "parameterValue": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/workspacePathRef"
+        }
+      ]
+    },
+    "executableIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executable_key",
+        "content_digest"
+      ],
+      "properties": {
+        "executable_key": {
+          "$ref": "#/$defs/key"
+        },
+        "content_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "secretSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_key",
+        "injection_mode",
+        "required"
+      ],
+      "properties": {
+        "slot_key": {
+          "$ref": "#/$defs/key"
+        },
+        "injection_mode": {
+          "enum": [
+            "ENVIRONMENT_VARIABLE",
+            "TEMPORARY_FILE",
+            "STANDARD_INPUT",
+            "BROKER_HANDLE"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "destination_keys"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "DENY",
+            "ALLOW_REGISTERED_DESTINATIONS"
+          ]
+        },
+        "destination_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/key"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "DENY"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "destination_keys": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "destination_keys": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "resourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_seconds",
+        "memory_mb",
+        "process_count"
+      ],
+      "properties": {
+        "cpu_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "memory_mb": {
+          "type": "integer",
+          "minimum": 64
+        },
+        "process_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "outputLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stdout_bytes",
+        "stderr_bytes",
+        "artifact_bytes"
+      ],
+      "properties": {
+        "stdout_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stderr_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "executionProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "profile_version",
+        "profile_version_id",
+        "profile_key",
+        "version",
+        "profile_digest",
+        "execution_mode",
+        "executable_identity",
+        "argv_template",
+        "working_directory_policy",
+        "environment_allowlist",
+        "secret_slots",
+        "network_policy",
+        "resource_limits",
+        "timeout_seconds",
+        "child_process_policy",
+        "output_limits",
+        "status"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "EXECUTION_PROFILE"
+        },
+        "profile_version": {
+          "const": "1.0"
+        },
+        "profile_version_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "profile_key": {
+          "$ref": "#/$defs/key"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "profile_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "execution_mode": {
+          "enum": [
+            "DIRECT",
+            "FIXED_SCRIPT"
+          ]
+        },
+        "executable_identity": {
+          "$ref": "#/$defs/executableIdentity"
+        },
+        "fixed_script_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "argv_template": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argumentTemplateItem"
+          }
+        },
+        "working_directory_policy": {
+          "const": "WORKSPACE_PATH_REF_ONLY"
+        },
+        "environment_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]{0,127}$"
+          }
+        },
+        "secret_slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/secretSlot"
+          }
+        },
+        "network_policy": {
+          "$ref": "#/$defs/networkPolicy"
+        },
+        "resource_limits": {
+          "$ref": "#/$defs/resourceLimits"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "child_process_policy": {
+          "enum": [
+            "DENY",
+            "ALLOW_PROFILED_TREE"
+          ]
+        },
+        "output_limits": {
+          "$ref": "#/$defs/outputLimits"
+        },
+        "status": {
+          "enum": [
+            "ACTIVE",
+            "RETIRED",
+            "DISABLED"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "execution_mode": {
+                "const": "FIXED_SCRIPT"
+              }
+            },
+            "required": [
+              "execution_mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "fixed_script_digest"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "fixed_script_digest"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "workspacePathRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "directory_id",
+        "relative_path_segments"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "WORKSPACE_PATH_REF"
+        },
+        "directory_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "relative_path_segments": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.ai-native.local/security/resource-scope/1.0/schema.json#/$defs/pathSegment"
+          }
+        },
+        "expected_file_identity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "expected_content_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "credentialBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_key",
+        "credential_ref"
+      ],
+      "properties": {
+        "slot_key": {
+          "$ref": "#/$defs/key"
+        },
+        "credential_ref": {
+          "$ref": "#/$defs/credentialRef"
+        }
+      }
+    },
+    "runnerRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "runner_request_id",
+        "intent_id",
+        "profile_version_id",
+        "profile_digest",
+        "parameter_values",
+        "resolved_argv_digest",
+        "workspace_path",
+        "credential_bindings",
+        "created_at"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "RUNNER_REQUEST"
+        },
+        "runner_request_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "intent_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "profile_version_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "profile_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "parameter_values": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/key"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/parameterValue"
+          }
+        },
+        "resolved_argv_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "workspace_path": {
+          "$ref": "#/$defs/workspacePathRef"
+        },
+        "credential_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/credentialBinding"
+          }
+        },
+        "created_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      }
+    },
+    "patchApplyBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "binding_version",
+        "patch_apply_binding_id",
+        "patch_id",
+        "patch_digest",
+        "workspace_grant_id",
+        "directory_id",
+        "expected_manifest_digest",
+        "target_file_set_digest",
+        "execution_profile_digest",
+        "workflow_version_id",
+        "source_run_id",
+        "action_digest",
+        "created_at"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "PATCH_APPLY_BINDING"
+        },
+        "binding_version": {
+          "const": "1.0"
+        },
+        "patch_apply_binding_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "patch_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "patch_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "workspace_grant_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "directory_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "expected_manifest_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "target_file_set_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "execution_profile_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "workflow_version_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "source_run_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "action_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "created_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      }
+    },
+    "patchApplyOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "patch_apply_operation_id",
+        "patch_apply_binding_id",
+        "intent_id",
+        "approval_request_id",
+        "expected_manifest_digest",
+        "status",
+        "updated_at"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "PATCH_APPLY_OPERATION"
+        },
+        "patch_apply_operation_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "patch_apply_binding_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "intent_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "approval_request_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "expected_manifest_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "actual_manifest_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "before_image_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "journal_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "status": {
+          "enum": [
+            "PREFLIGHT",
+            "APPLYING",
+            "RECOVERING",
+            "APPLIED",
+            "CONFLICT",
+            "FAILED_BEFORE_WRITE",
+            "APPLY_RECOVERY_REQUIRED",
+            "RECOVERED",
+            "ROLLBACK_CONFLICT"
+          ]
+        },
+        "diagnostic_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+          }
+        },
+        "updated_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      }
+    },
+    "patchJournalEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "patch_apply_operation_id",
+        "sequence",
+        "target",
+        "operation",
+        "before_digest",
+        "after_digest",
+        "result",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "PATCH_JOURNAL_ENTRY"
+        },
+        "patch_apply_operation_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "target": {
+          "$ref": "#/$defs/workspacePathRef"
+        },
+        "operation": {
+          "enum": [
+            "CREATE",
+            "REPLACE",
+            "DELETE"
+          ]
+        },
+        "before_digest": {
+          "$ref": "#/$defs/nullableDigest"
+        },
+        "after_digest": {
+          "$ref": "#/$defs/nullableDigest"
+        },
+        "result": {
+          "enum": [
+            "APPLIED",
+            "FAILED",
+            "ROLLED_BACK",
+            "ROLLBACK_CONFLICT"
+          ]
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      }
+    }
+  }
+}

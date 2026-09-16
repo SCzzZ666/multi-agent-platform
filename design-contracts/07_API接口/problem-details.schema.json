@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ai-native.local/problem-details/1.0/schema.json",
+  "title": "Platform Problem Details 1.0",
+  "description": "Provider-neutral public API error. The error catalog is authoritative only for public API Problem Details codes; domain diagnostic keys remain governed by their owning contracts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "title",
+    "status",
+    "code",
+    "retryable",
+    "client_action",
+    "request_id",
+    "trace_id",
+    "occurred_at"
+  ],
+  "properties": {
+    "type": { "type": "string", "format": "uri-reference" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+    "detail": { "type": "string", "maxLength": 2000 },
+    "instance": { "type": "string", "format": "uri-reference" },
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,95}$",
+      "description": "Must exist in error-catalog.json; enforced by static contract validation."
+    },
+    "retryable": { "type": "boolean" },
+    "client_action": {
+      "enum": [
+        "NONE",
+        "FIX_REQUEST",
+        "REFRESH_RESOURCE",
+        "REAUTHENTICATE",
+        "REQUEST_PERMISSION",
+        "WAIT_AND_RETRY",
+        "REVIEW_AND_DECIDE",
+        "RECONCILE",
+        "CONTACT_ADMIN"
+      ]
+    },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "trace_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "retry_after_seconds": { "type": "integer", "minimum": 0 },
+    "violations": {
+      "type": "array",
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/violation" }
+    },
+    "conflict": { "$ref": "#/$defs/conflict" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "reason"],
+      "properties": {
+        "field": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "rule": { "type": "string", "maxLength": 128 },
+        "value_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource_type"],
+      "properties": {
+        "resource_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "resource_id": { "type": "string", "format": "uuid" },
+        "expected_etag": { "type": "string", "maxLength": 200 },
+        "current_etag": { "type": "string", "maxLength": 200 },
+        "expected_state": { "type": "string", "maxLength": 64 },
+        "current_state": { "type": "string", "maxLength": 64 },
+        "expected_digest": { "$ref": "#/$defs/digest" },
+        "current_digest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

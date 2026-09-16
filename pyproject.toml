@@ -1,0 +1,10 @@
+[project]
+name = "ai-native"
+version = "0.1.0"
+description = "多角色 Agent 协作平台 —— 控制平面 monorepo（backend + runner workspace 成员）"
+requires-python = ">=3.12"
+
+# uv workspace 根：backend 与 runner 是两个成员，共享根 pyproject 的 workspace 编排，
+# 但 runner 拥有独立依赖集（见 runner/pyproject.toml）。
+[tool.uv.workspace]
+members = ["backend", "runner"]

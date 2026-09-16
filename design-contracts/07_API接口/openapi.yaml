@@ -1,0 +1,994 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Multi-role Agent Platform API",
+    "version": "1.0.0",
+    "description": "API-BL-2026-09-14-01. Provider-neutral public API aligned with the frozen core business flow. MAF and provider SDK objects remain internal."
+  },
+  "servers": [{ "url": "/api/v1" }],
+  "tags": [
+    { "name": "Operations" },
+    { "name": "Projects" },
+    { "name": "Sources" },
+    { "name": "Chat" },
+    { "name": "Proposals" },
+    { "name": "Workflows" },
+    { "name": "Runs" },
+    { "name": "Approvals" },
+    { "name": "Skills" },
+    { "name": "Capabilities" },
+    { "name": "Artifacts" }
+  ],
+  "paths": {
+    "/session": {
+      "get": {
+        "operationId": "getCurrentSession",
+        "summary": "Read the authenticated principal and current session",
+        "tags": ["Operations"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }],
+        "responses": {
+          "200": { "description": "Current session", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionInfo" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED"]
+      }
+    },
+    "/workflow-template-versions": {
+      "get": {
+        "operationId": "listWorkflowTemplateVersions",
+        "summary": "List visible immutable workflow template versions",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Workflow template version page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowTemplateVersionPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      }
+    },
+    "/role-catalog-versions": {
+      "get": {
+        "operationId": "listRoleCatalogVersions",
+        "summary": "List immutable fixed-role catalog versions",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Role catalog version page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RoleCatalogVersionPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      }
+    },
+    "/operations/{operation_id}": {
+      "get": {
+        "operationId": "getOperation",
+        "summary": "Read an asynchronous operation",
+        "tags": ["Operations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/RequestId" },
+          { "$ref": "#/components/parameters/OperationId" }
+        ],
+        "responses": {
+          "200": { "description": "Operation state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Operation" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      }
+    },
+    "/projects": {
+      "get": {
+        "operationId": "listProjects",
+        "summary": "List visible projects",
+        "tags": ["Projects"],
+        "parameters": [
+          { "$ref": "#/components/parameters/RequestId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" }
+        ],
+        "responses": {
+          "200": { "description": "Project page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      },
+      "post": {
+        "operationId": "createProject",
+        "summary": "Create a project",
+        "tags": ["Projects"],
+        "parameters": [
+          { "$ref": "#/components/parameters/RequestId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/CsrfToken" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateProjectRequest" } } } },
+        "responses": {
+          "201": { "description": "Project created", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "VALIDATION_ERROR", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}": {
+      "get": {
+        "operationId": "getProject",
+        "summary": "Read a project",
+        "tags": ["Projects"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }],
+        "responses": {
+          "200": { "description": "Project", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND"]
+      },
+      "put": {
+        "operationId": "updateProject",
+        "summary": "Update project name or objective",
+        "tags": ["Projects"],
+        "parameters": [
+          { "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/CsrfToken" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateProjectRequest" } } } },
+        "responses": {
+          "200": { "description": "Project updated", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "PROJECT_ARCHIVED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "VALIDATION_ERROR", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/archive": {
+      "post": {
+        "operationId": "archiveProject",
+        "summary": "Archive a project after all runs are terminal",
+        "tags": ["Projects"],
+        "parameters": [
+          { "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/CsrfToken" }
+        ],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReasonRequest" } } } },
+        "responses": {
+          "200": { "description": "Project archived", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_HAS_ACTIVE_RUNS", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "PROJECT_ARCHIVED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/restore": {
+      "post": {
+        "operationId": "restoreProject",
+        "summary": "Restore an archived project",
+        "tags": ["Projects"],
+        "parameters": [
+          { "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/CsrfToken" }
+        ],
+        "responses": {
+          "200": { "description": "Project restored", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "RESOURCE_CONFLICT", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/sources": {
+      "get": {
+        "operationId": "listSources",
+        "summary": "List project sources",
+        "tags": ["Sources"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Source page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SourcePage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      },
+      "post": {
+        "operationId": "registerSource",
+        "summary": "Register or import a project source",
+        "tags": ["Sources"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RegisterReferencedSourceRequest" } },
+            "multipart/form-data": { "schema": { "$ref": "#/components/schemas/UploadSourceRequest" } }
+          }
+        },
+        "responses": {
+          "202": { "$ref": "#/components/responses/OperationAccepted" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "SOURCE_INVALID", "SECRET_MATERIAL_REJECTED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/sources/{source_id}": {
+      "get": {
+        "operationId": "getSource",
+        "summary": "Read source metadata and current version",
+        "tags": ["Sources"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/SourceId" }],
+        "responses": {
+          "200": { "description": "Source", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Source" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      }
+    },
+    "/projects/{project_id}/sources/{source_id}/retire": {
+      "post": {
+        "operationId": "retireSource",
+        "summary": "Retire a source from current retrieval without deleting historical versions",
+        "tags": ["Sources"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/SourceId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReasonRequest" } } } },
+        "responses": {
+          "200": { "description": "Source retired; historical versions remain readable to authorized historical runs", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Source" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "SOURCE_ALREADY_RETIRED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/messages": {
+      "get": {
+        "operationId": "listProjectMessages",
+        "summary": "List project chat messages",
+        "tags": ["Chat"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Message page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessagePage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "sendProjectMessage",
+        "summary": "Send a project chat message",
+        "tags": ["Chat"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SendMessageRequest" } } } },
+        "responses": {
+          "202": { "$ref": "#/components/responses/OperationAccepted" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "CONTEXT_SCOPE_DENIED", "BUDGET_EXHAUSTED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/proposals": {
+      "get": {
+        "operationId": "listProposals",
+        "summary": "List project proposals",
+        "tags": ["Proposals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Proposal page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProposalPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      }
+    },
+    "/projects/{project_id}/proposals/{proposal_id}": {
+      "get": {
+        "operationId": "getProposal",
+        "summary": "Read a proposal and its proposed changes",
+        "tags": ["Proposals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ProposalId" }],
+        "responses": {
+          "200": { "description": "Proposal", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Proposal" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      }
+    },
+    "/projects/{project_id}/proposals/{proposal_id}/apply": {
+      "post": {
+        "operationId": "applyProposal",
+        "summary": "Confirm and apply a proposal to its target draft",
+        "tags": ["Proposals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ProposalId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProposalDecisionRequest" } } } },
+        "responses": {
+          "200": { "description": "Proposal applied and draft revised", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowDraft" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PROPOSAL_STALE", "PROPOSAL_ALREADY_RESOLVED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "WORKFLOW_SEMANTIC_INVALID", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/proposals/{proposal_id}/reject": {
+      "post": {
+        "operationId": "rejectProposal",
+        "summary": "Reject a proposal without changing the draft",
+        "tags": ["Proposals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ProposalId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReasonRequest" } } } },
+        "responses": {
+          "200": { "description": "Proposal rejected", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Proposal" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PROPOSAL_ALREADY_RESOLVED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/workflows": {
+      "get": {
+        "operationId": "listWorkflows",
+        "summary": "List workflows",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Workflow page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "createWorkflow",
+        "summary": "Create a workflow and initial draft",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateWorkflowRequest" } } } },
+        "responses": {
+          "201": { "description": "Workflow created", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowDraft" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "VERSION_RETIRED", "VALIDATION_ERROR", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/workflows/{workflow_id}/draft": {
+      "get": {
+        "operationId": "getWorkflowDraft",
+        "summary": "Read the current workflow draft",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/WorkflowId" }],
+        "responses": {
+          "200": { "description": "Workflow draft", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowDraft" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      },
+      "put": {
+        "operationId": "replaceWorkflowDraft",
+        "summary": "Replace the full workflow draft definition",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/WorkflowId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReplaceWorkflowDraftRequest" } } } },
+        "responses": {
+          "200": { "description": "Draft replaced", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowDraft" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "WORKFLOW_SCHEMA_INVALID", "WORKFLOW_SEMANTIC_INVALID", "INVALID_DAG", "ROLE_BINDING_INVALID", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/workflows/{workflow_id}/draft/nodes/{node_key}/capabilities": {
+      "put": {
+        "operationId": "replaceDraftNodeCapabilities",
+        "summary": "Replace a draft node capability declaration",
+        "tags": ["Workflows", "Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/WorkflowId" }, { "$ref": "#/components/parameters/NodeKey" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CapabilityBindingSetRequest" } } } },
+        "responses": {
+          "200": { "description": "Draft revised", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowDraft" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "CAPABILITY_SCOPE_EXCEEDED", "ROLE_BINDING_INVALID", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/workflows/{workflow_id}/publish": {
+      "post": {
+        "operationId": "publishWorkflow",
+        "summary": "Validate and publish the current draft",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/WorkflowId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublishWorkflowRequest" } } } },
+        "responses": {
+          "201": { "description": "Workflow version published", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowVersion" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "WORKFLOW_SCHEMA_INVALID", "WORKFLOW_SEMANTIC_INVALID", "INVALID_DAG", "CAPABILITY_SCOPE_EXCEEDED", "CONTENT_DIGEST_MISMATCH", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/workflow-versions": {
+      "get": {
+        "operationId": "listWorkflowVersions",
+        "summary": "List immutable workflow versions",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Workflow version page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowVersionPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      }
+    },
+    "/projects/{project_id}/workflow-versions/{workflow_version_id}": {
+      "get": {
+        "operationId": "getWorkflowVersion",
+        "summary": "Read an immutable workflow version",
+        "tags": ["Workflows"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/WorkflowVersionId" }],
+        "responses": {
+          "200": { "description": "Workflow version", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowVersion" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      }
+    },
+    "/projects/{project_id}/runs": {
+      "get": {
+        "operationId": "listRuns",
+        "summary": "List project runs",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Run page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RunPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      }
+    },
+    "/projects/{project_id}/workflow-versions/{workflow_version_id}/runs": {
+      "post": {
+        "operationId": "startRun",
+        "summary": "Create and start a run from an immutable workflow version",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/WorkflowVersionId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StartRunRequest" } } } },
+        "responses": {
+          "202": { "$ref": "#/components/responses/OperationAccepted" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "VERSION_RETIRED", "SOURCE_VERSION_UNAVAILABLE", "CONTEXT_SCOPE_DENIED", "CAPABILITY_UNAVAILABLE", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}": {
+      "get": {
+        "operationId": "getRun",
+        "summary": "Read aggregate run state",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }],
+        "responses": {
+          "200": { "description": "Run", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Run" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/pause": { "$ref": "#/components/pathItems/PauseRun" },
+    "/projects/{project_id}/runs/{run_id}/resume": { "$ref": "#/components/pathItems/ResumeRun" },
+    "/projects/{project_id}/runs/{run_id}/cancel": { "$ref": "#/components/pathItems/CancelRun" },
+    "/projects/{project_id}/runs/{run_id}/input-amendments": {
+      "get": {
+        "operationId": "listInputAmendments",
+        "summary": "List immutable run input amendments",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Input amendment page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InputAmendmentPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "addInputAmendment",
+        "summary": "Append immutable input and trigger a new Planner attempt",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AddInputAmendmentRequest" } } } },
+        "responses": {
+          "202": { "$ref": "#/components/responses/OperationAccepted" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "RUN_ALREADY_TERMINAL", "RUN_STATE_CONFLICT", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "SOURCE_VERSION_UNAVAILABLE", "REPLAN_LIMIT_EXCEEDED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/plan-versions": {
+      "get": {
+        "operationId": "listRunPlanVersions",
+        "summary": "List immutable run plan versions and switch facts",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Run plan version page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RunPlanVersionPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/plan-versions/{plan_version_id}": {
+      "get": {
+        "operationId": "getRunPlanVersion",
+        "summary": "Read an immutable run plan version",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/PlanVersionId" }],
+        "responses": {
+          "200": { "description": "Run plan version", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RunPlanVersion" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/node-attempts": {
+      "get": {
+        "operationId": "listNodeAttempts",
+        "summary": "List node attempts for a run",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/NodeKeyFilter" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Node attempt page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeAttemptPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/report": {
+      "get": {
+        "operationId": "getRunReport",
+        "summary": "Read the run report",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }],
+        "responses": {
+          "200": { "description": "Run report", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RunReport" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "OPERATION_NOT_READY", "ARTIFACT_NOT_COMMITTED"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/events": {
+      "get": {
+        "operationId": "streamRunEvents",
+        "summary": "Subscribe to replayable run events",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/LastEventId" }, { "$ref": "#/components/parameters/AfterSequence" }],
+        "responses": {
+          "200": { "description": "SSE stream; each data field is an EventEnvelope JSON value", "content": { "text/event-stream": { "schema": { "type": "string" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/rework-requests": {
+      "get": {
+        "operationId": "listReworkRequests",
+        "summary": "List human rework requests and derived runs",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": {
+          "200": { "description": "Rework request page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReworkRequestPage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "createReworkRequest",
+        "summary": "Create a human rework request and derived run",
+        "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateReworkRequest" } } } },
+        "responses": {
+          "202": { "$ref": "#/components/responses/OperationAccepted" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "RUN_REWORK_NOT_ALLOWED", "DERIVED_RUN_CONFLICT", "SOURCE_VERSION_UNAVAILABLE", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/runs/{run_id}/capability-approval-requests": { "$ref": "#/components/pathItems/ListCapabilityApprovals" },
+    "/projects/{project_id}/capability-approval-requests/{approval_request_id}": { "$ref": "#/components/pathItems/GetCapabilityApproval" },
+    "/projects/{project_id}/capability-approval-requests/{approval_request_id}/decisions": { "$ref": "#/components/pathItems/DecideCapabilityApproval" },
+    "/projects/{project_id}/runs/{run_id}/workflow-approval-requests": { "$ref": "#/components/pathItems/ListWorkflowApprovals" },
+    "/projects/{project_id}/workflow-approval-requests/{approval_request_id}": { "$ref": "#/components/pathItems/GetWorkflowApproval" },
+    "/projects/{project_id}/workflow-approval-requests/{approval_request_id}/decisions": { "$ref": "#/components/pathItems/DecideWorkflowApproval" },
+    "/projects/{project_id}/patches/{patch_id}/apply-approval-request": { "$ref": "#/components/pathItems/GetPatchApplyApproval" },
+    "/projects/{project_id}/patch-apply-approval-requests/{approval_request_id}/decisions": { "$ref": "#/components/pathItems/DecidePatchApplyApproval" },
+    "/projects/{project_id}/patches/{patch_id}/apply": {
+      "post": {
+        "operationId": "applyPatch",
+        "summary": "Conditionally apply an approved patch",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/PatchId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApplyPatchRequest" } } } },
+        "responses": {
+          "202": { "$ref": "#/components/responses/OperationAccepted" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["PROJECT_ARCHIVED", "APPROVAL_REQUIRED", "APPROVAL_EXPIRED", "APPROVAL_STALE", "APPROVAL_KIND_MISMATCH", "PATCH_APPLY_CONFLICT", "PATCH_APPLY_RECOVERY_REQUIRED", "PATH_SCOPE_INVALID", "INVOCATION_OUTCOME_UNKNOWN", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/skill-versions": {
+      "get": {
+        "operationId": "listPublishedSkillVersions",
+        "summary": "List published Skill versions visible to the project",
+        "tags": ["Skills"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "Published Skill version page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SkillVersionPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      }
+    },
+    "/projects/{project_id}/skill-imports": {
+      "post": {
+        "operationId": "importSkill",
+        "summary": "Import a Skill package",
+        "tags": ["Skills"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SkillImportRequest" } } } },
+        "responses": { "202": { "$ref": "#/components/responses/OperationAccepted" }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PACKAGE_INVALID", "SECRET_MATERIAL_REJECTED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/mcp-connections": {
+      "get": {
+        "operationId": "listMcpConnections",
+        "summary": "List MCP connections and exposure state",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "MCP connection page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpConnectionPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "createMcpConnection",
+        "summary": "Create a project MCP connection configuration",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateMcpConnectionRequest" } } } },
+        "responses": { "201": { "description": "MCP connection created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpConnection" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "VALIDATION_ERROR", "SECRET_MATERIAL_REJECTED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/mcp-connections/{connection_id}/tests": {
+      "post": {
+        "operationId": "testMcpConnection",
+        "summary": "Test an MCP connection and discover tools without authorizing them",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/McpConnectionId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "responses": { "202": { "$ref": "#/components/responses/OperationAccepted" }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "CONNECTION_FAILED", "CREDENTIAL_UNAVAILABLE", "CAPABILITY_SCOPE_EXCEEDED", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/mcp-connections/{connection_id}/tool-snapshots": {
+      "get": {
+        "operationId": "listMcpToolSnapshots",
+        "summary": "List discovered immutable MCP Tool Schema snapshots without implying authorization",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/McpConnectionId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "MCP Tool Schema snapshot page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpToolSnapshotPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE", "CURSOR_EXPIRED", "CURSOR_SCOPE_MISMATCH"]
+      }
+    },
+    "/projects/{project_id}/workspace-grants": {
+      "get": {
+        "operationId": "listWorkspaceGrants",
+        "summary": "List logical workspace grants",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "Workspace grant page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkspaceGrantPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "createWorkspaceGrant",
+        "summary": "Create a logical workspace grant",
+        "tags": ["Capabilities"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateWorkspaceGrantRequest" } } } },
+        "responses": { "201": { "description": "Workspace grant created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkspaceGrant" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "PATH_SCOPE_INVALID", "VALIDATION_ERROR", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    },
+    "/projects/{project_id}/artifacts": {
+      "get": {
+        "operationId": "listArtifacts",
+        "summary": "List artifact metadata",
+        "tags": ["Artifacts"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "Artifact page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArtifactPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      }
+    },
+    "/projects/{project_id}/artifacts/{artifact_id}": {
+      "get": {
+        "operationId": "getArtifact",
+        "summary": "Read artifact metadata",
+        "tags": ["Artifacts"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ArtifactId" }],
+        "responses": { "200": { "description": "Artifact metadata", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Artifact" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE", "ARTIFACT_NOT_COMMITTED"]
+      }
+    },
+    "/projects/{project_id}/artifacts/{artifact_id}/content": {
+      "get": {
+        "operationId": "getArtifactContent",
+        "summary": "Read immutable artifact content using its registered media type",
+        "tags": ["Artifacts"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ArtifactId" }],
+        "responses": {
+          "200": {
+            "description": "Artifact bytes. Content-Type is the registered artifact media_type.",
+            "headers": { "ETag": { "$ref": "#/components/headers/ETag" }, "Accept-Ranges": { "schema": { "type": "string", "const": "bytes" } } },
+            "content": { "application/octet-stream": { "schema": { "type": "string", "contentEncoding": "binary" } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE", "ARTIFACT_NOT_COMMITTED", "ARTIFACT_DIGEST_MISMATCH"]
+      }
+    },
+    "/projects/{project_id}/artifacts/{artifact_id}/reviews": {
+      "get": {
+        "operationId": "listArtifactReviews",
+        "summary": "List reviews for an immutable artifact version",
+        "tags": ["Artifacts"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ArtifactId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "Artifact review page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArtifactReviewPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+      },
+      "post": {
+        "operationId": "createArtifactReview",
+        "summary": "Submit a version-bound artifact review",
+        "tags": ["Artifacts"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ArtifactId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateArtifactReviewRequest" } } } },
+        "responses": { "201": { "description": "Review submitted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArtifactReview" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "ARTIFACT_NOT_COMMITTED", "ARTIFACT_REVIEW_CONFLICT", "IDEMPOTENCY_KEY_REUSED"]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "LocalSession": { "type": "apiKey", "in": "cookie", "name": "session" }
+    },
+    "headers": {
+      "ETag": { "description": "Opaque resource version or immutable content digest tag", "schema": { "type": "string", "minLength": 3, "maxLength": 200 } }
+    },
+    "parameters": {
+      "RequestId": { "name": "X-Request-Id", "in": "header", "required": false, "schema": { "type": "string", "maxLength": 128 } },
+      "IdempotencyKey": { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string", "minLength": 8, "maxLength": 200 } },
+      "IfMatch": { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string", "minLength": 3, "maxLength": 200 } },
+      "CsrfToken": { "name": "X-CSRF-Token", "in": "header", "required": true, "schema": { "type": "string", "minLength": 16, "maxLength": 512 } },
+      "LastEventId": { "name": "Last-Event-ID", "in": "header", "required": false, "schema": { "type": "integer", "minimum": 0 } },
+      "AfterSequence": { "name": "after_sequence", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0 } },
+      "Limit": { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } },
+      "Cursor": { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string", "minLength": 1, "maxLength": 2000 } },
+      "NodeKeyFilter": { "name": "node_key", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/NodeKey" } },
+      "OperationId": { "name": "operation_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "ProjectId": { "name": "project_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "SourceId": { "name": "source_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "ProposalId": { "name": "proposal_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "WorkflowId": { "name": "workflow_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "WorkflowVersionId": { "name": "workflow_version_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "RunId": { "name": "run_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "PlanVersionId": { "name": "plan_version_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "NodeKey": { "name": "node_key", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/NodeKey" } },
+      "ApprovalRequestId": { "name": "approval_request_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "McpConnectionId": { "name": "connection_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "PatchId": { "name": "patch_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } },
+      "ArtifactId": { "name": "artifact_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/UuidV7" } }
+    },
+    "responses": {
+      "Problem": { "description": "Problem Details error", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } } } },
+      "OperationAccepted": { "description": "Command accepted for asynchronous processing", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OperationAccepted" } } } }
+    },
+    "pathItems": {
+      "PauseRun": {
+        "post": {
+        "operationId": "pauseRun", "summary": "Request run pause", "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReasonRequest" } } } },
+        "responses": { "202": { "$ref": "#/components/responses/OperationAccepted" }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "RUN_ALREADY_TERMINAL", "RUN_STATE_CONFLICT", "COMMAND_IN_PROGRESS", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "IDEMPOTENCY_KEY_REUSED"]
+        }
+      },
+      "ResumeRun": {
+        "post": {
+        "operationId": "resumeRun", "summary": "Resume a paused run after revalidation", "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReasonRequest" } } } },
+        "responses": { "202": { "$ref": "#/components/responses/OperationAccepted" }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "RUN_ALREADY_TERMINAL", "RUN_STATE_CONFLICT", "CHECKPOINT_INCOMPATIBLE", "RUNTIME_INCOMPATIBLE", "CAPABILITY_REVOKED", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "IDEMPOTENCY_KEY_REUSED"]
+        }
+      },
+      "CancelRun": {
+        "post": {
+        "operationId": "cancelRun", "summary": "Explicitly cancel a run", "tags": ["Runs"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/IfMatch" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReasonRequest" } } } },
+        "responses": { "202": { "$ref": "#/components/responses/OperationAccepted" }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "RUN_ALREADY_TERMINAL", "COMMAND_IN_PROGRESS", "PRECONDITION_REQUIRED", "PRECONDITION_FAILED", "IDEMPOTENCY_KEY_REUSED"]
+        }
+      },
+      "ListCapabilityApprovals": {
+        "get": {
+        "operationId": "listCapabilityApprovalRequests", "summary": "List capability approval requests for a run", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "Capability approval page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CapabilityApprovalPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+        }
+      },
+      "GetCapabilityApproval": {
+        "get": {
+        "operationId": "getCapabilityApprovalRequest", "summary": "Read a capability approval request", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ApprovalRequestId" }],
+        "responses": { "200": { "description": "Capability approval request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CapabilityApprovalRequest" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+        }
+      },
+      "DecideCapabilityApproval": {
+        "post": {
+        "operationId": "decideCapabilityApproval", "summary": "Append a capability approval decision", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ApprovalRequestId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateCapabilityApprovalDecisionRequest" } } } },
+        "responses": { "201": { "description": "Capability approval decision appended", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CapabilityApprovalDecision" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "APPROVAL_EXPIRED", "APPROVAL_STALE", "APPROVAL_KIND_MISMATCH", "CAPABILITY_REVOKED", "IDEMPOTENCY_KEY_REUSED"]
+        }
+      },
+      "ListWorkflowApprovals": {
+        "get": {
+        "operationId": "listWorkflowApprovalRequests", "summary": "List workflow approval requests for a run", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }],
+        "responses": { "200": { "description": "Workflow approval page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowApprovalPage" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CURSOR_EXPIRED"]
+        }
+      },
+      "GetWorkflowApproval": {
+        "get": {
+        "operationId": "getWorkflowApprovalRequest", "summary": "Read a workflow approval request", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ApprovalRequestId" }],
+        "responses": { "200": { "description": "Workflow approval request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowApprovalRequest" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+        }
+      },
+      "DecideWorkflowApproval": {
+        "post": {
+        "operationId": "decideWorkflowApproval", "summary": "Append a workflow approval decision", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ApprovalRequestId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateWorkflowApprovalDecisionRequest" } } } },
+        "responses": { "201": { "description": "Workflow approval decision appended", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowApprovalDecision" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "APPROVAL_EXPIRED", "APPROVAL_STALE", "APPROVAL_KIND_MISMATCH", "IDEMPOTENCY_KEY_REUSED"]
+        }
+      },
+      "GetPatchApplyApproval": {
+        "get": {
+        "operationId": "getPatchApplyApprovalRequest", "summary": "Read the patch apply approval request", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/PatchId" }],
+        "responses": { "200": { "description": "Patch apply approval request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PatchApplyApprovalRequest" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CROSS_PROJECT_REFERENCE"]
+        }
+      },
+      "DecidePatchApplyApproval": {
+        "post": {
+        "operationId": "decidePatchApplyApproval", "summary": "Append a patch apply approval decision", "tags": ["Approvals"],
+        "parameters": [{ "$ref": "#/components/parameters/RequestId" }, { "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/ApprovalRequestId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatePatchApplyApprovalDecisionRequest" } } } },
+        "responses": { "201": { "description": "Patch apply approval decision appended", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PatchApplyApprovalDecision" } } } }, "default": { "$ref": "#/components/responses/Problem" } },
+        "x-error-codes": ["PROJECT_ARCHIVED", "APPROVAL_EXPIRED", "APPROVAL_STALE", "APPROVAL_KIND_MISMATCH", "PATCH_APPLY_CONFLICT", "IDEMPOTENCY_KEY_REUSED"]
+        }
+      }
+    },
+    "schemas": {
+      "WorkflowDefinition": { "$ref": "../08_WorkflowDefinition/workflow-definition.schema.json" },
+      "ProblemDetails": { "$ref": "./problem-details.schema.json" },
+      "EventEnvelope": { "$ref": "./event-envelope.schema.json" },
+      "UuidV7": { "type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+      "Digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+      "Sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+      "NodeKey": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+      "PageMeta": {
+        "type": "object", "additionalProperties": false, "required": ["next_cursor", "has_more"],
+        "properties": { "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } }
+      },
+      "SessionInfo": { "type": "object", "additionalProperties": false, "required": ["principal_id", "display_name", "session_id", "authenticated_at"], "properties": { "principal_id": { "$ref": "#/components/schemas/UuidV7" }, "display_name": { "type": "string", "minLength": 1, "maxLength": 200 }, "session_id": { "$ref": "#/components/schemas/UuidV7" }, "authenticated_at": { "type": "string", "format": "date-time" } } },
+      "WorkflowTemplateVersionSummary": { "type": "object", "additionalProperties": false, "required": ["template_version_id", "template_key", "name", "version", "definition_schema_version", "status", "content_digest"], "properties": { "template_version_id": { "$ref": "#/components/schemas/UuidV7" }, "template_key": { "enum": ["software_factory", "skills", "ai4s"] }, "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "version": { "type": "integer", "minimum": 1 }, "definition_schema_version": { "type": "string", "minLength": 1, "maxLength": 32 }, "status": { "enum": ["ACTIVE", "RETIRED"] }, "content_digest": { "$ref": "#/components/schemas/Digest" } } },
+      "WorkflowTemplateVersionPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/WorkflowTemplateVersionSummary" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "RoleCatalogVersionSummary": { "type": "object", "additionalProperties": false, "required": ["role_catalog_version_id", "version", "role_ids", "status", "content_digest"], "properties": { "role_catalog_version_id": { "$ref": "#/components/schemas/UuidV7" }, "version": { "type": "integer", "minimum": 1 }, "role_ids": { "type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": { "enum": ["planner", "architect", "engineer", "validator", "researcher", "analyst", "writer", "skill_maintainer"] } }, "status": { "enum": ["ACTIVE", "RETIRED"] }, "content_digest": { "$ref": "#/components/schemas/Digest" } } },
+      "RoleCatalogVersionPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/RoleCatalogVersionSummary" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "ReasonRequest": { "type": "object", "additionalProperties": false, "properties": { "reason": { "type": "string", "maxLength": 1000 } } },
+      "OperationAccepted": {
+        "type": "object", "additionalProperties": false,
+        "required": ["operation_id", "project_id", "operation_type", "resource_type", "resource_id", "status", "status_url", "accepted_at"],
+        "properties": {
+          "operation_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" },
+          "operation_type": { "type": "string", "minLength": 1, "maxLength": 64 }, "resource_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "resource_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" },
+          "status": { "enum": ["ACCEPTED", "RUNNING"] }, "status_url": { "type": "string", "format": "uri-reference" },
+          "events_url": { "type": "string", "format": "uri-reference" }, "accepted_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Operation": {
+        "type": "object", "additionalProperties": false,
+        "required": ["operation_id", "project_id", "operation_type", "resource_type", "resource_id", "status", "accepted_at", "updated_at"],
+        "properties": {
+          "operation_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" },
+          "operation_type": { "type": "string", "minLength": 1, "maxLength": 64 }, "resource_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "resource_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" },
+          "status": { "enum": ["ACCEPTED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] },
+          "accepted_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" },
+          "completed_at": { "type": ["string", "null"], "format": "date-time" }, "problem": { "$ref": "#/components/schemas/ProblemDetails" }
+        }
+      },
+      "Project": {
+        "type": "object", "additionalProperties": false, "required": ["project_id", "name", "objective", "status", "created_at", "updated_at"],
+        "properties": { "project_id": { "$ref": "#/components/schemas/UuidV7" }, "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "objective": { "type": "string", "minLength": 1, "maxLength": 4000 }, "status": { "enum": ["ACTIVE", "ARCHIVED"] }, "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" } }
+      },
+      "CreateProjectRequest": { "type": "object", "additionalProperties": false, "required": ["name", "objective"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "objective": { "type": "string", "minLength": 1, "maxLength": 4000 } } },
+      "UpdateProjectRequest": { "type": "object", "additionalProperties": false, "minProperties": 1, "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "objective": { "type": "string", "minLength": 1, "maxLength": 4000 } } },
+      "ProjectPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "Source": {
+        "type": "object", "additionalProperties": false, "required": ["source_id", "project_id", "name", "source_type", "status", "current_version_id", "created_at"],
+        "properties": { "source_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "name": { "type": "string", "minLength": 1, "maxLength": 255 }, "source_type": { "enum": ["UPLOAD", "URL", "GIT_READ_ONLY", "DATASET_REF"] }, "status": { "enum": ["IMPORTING", "READY", "FAILED", "RETIRED"] }, "current_version_id": { "oneOf": [{ "$ref": "#/components/schemas/UuidV7" }, { "type": "null" }] }, "content_digest": { "$ref": "#/components/schemas/Digest" }, "created_at": { "type": "string", "format": "date-time" }, "retired_at": { "type": ["string", "null"], "format": "date-time" } }
+      },
+      "RegisterReferencedSourceRequest": { "type": "object", "additionalProperties": false, "required": ["name", "source_type", "source_ref"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 255 }, "source_type": { "enum": ["URL", "GIT_READ_ONLY", "DATASET_REF"] }, "source_ref": { "type": "string", "minLength": 1, "maxLength": 2000 }, "license_note": { "type": "string", "maxLength": 2000 } } },
+      "UploadSourceRequest": { "type": "object", "additionalProperties": false, "required": ["name", "source_type", "filename", "media_type", "sha256", "content"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 255 }, "source_type": { "const": "UPLOAD" }, "filename": { "type": "string", "minLength": 1, "maxLength": 255 }, "media_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "sha256": { "$ref": "#/components/schemas/Sha256Hex" }, "license_note": { "type": "string", "maxLength": 2000 }, "content": { "type": "string", "format": "binary" } } },
+      "SourcePage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Source" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "ChatMessage": { "type": "object", "additionalProperties": false, "required": ["message_id", "project_id", "role", "content", "created_at"], "properties": { "message_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "role": { "enum": ["USER", "ASSISTANT", "SYSTEM_NOTICE"] }, "content": { "type": "string", "minLength": 1, "maxLength": 50000 }, "source_version_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/components/schemas/UuidV7" } }, "created_at": { "type": "string", "format": "date-time" } } },
+      "SendMessageRequest": { "type": "object", "additionalProperties": false, "required": ["content", "source_version_ids"], "properties": { "content": { "type": "string", "minLength": 1, "maxLength": 50000 }, "source_version_ids": { "type": "array", "uniqueItems": true, "maxItems": 500, "items": { "$ref": "#/components/schemas/UuidV7" } }, "target_workflow_id": { "$ref": "#/components/schemas/UuidV7" }, "target_draft_revision": { "type": "integer", "minimum": 1 } } },
+      "MessagePage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/ChatMessage" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "ProposalChange": { "type": "object", "additionalProperties": false, "required": ["change_type", "target", "summary"], "properties": { "change_type": { "enum": ["ADD", "REPLACE", "REMOVE", "REORDER", "REBIND"] }, "target": { "type": "string", "minLength": 1, "maxLength": 500 }, "summary": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "Proposal": { "type": "object", "additionalProperties": false, "required": ["proposal_id", "project_id", "workflow_id", "target_draft_revision", "status", "changes", "created_at"], "properties": { "proposal_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "workflow_id": { "$ref": "#/components/schemas/UuidV7" }, "target_draft_revision": { "type": "integer", "minimum": 1 }, "status": { "enum": ["PENDING", "APPLIED", "REJECTED", "STALE"] }, "changes": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/ProposalChange" } }, "source_message_ids": { "type": "array", "items": { "$ref": "#/components/schemas/UuidV7" } }, "created_at": { "type": "string", "format": "date-time" }, "resolved_at": { "type": ["string", "null"], "format": "date-time" } } },
+      "ProposalDecisionRequest": { "type": "object", "additionalProperties": false, "required": ["decision_reason"], "properties": { "decision_reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "ProposalPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Proposal" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "WorkflowSummary": { "type": "object", "additionalProperties": false, "required": ["workflow_id", "project_id", "name", "draft_revision", "latest_version_no", "updated_at"], "properties": { "workflow_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "draft_revision": { "type": "integer", "minimum": 1 }, "latest_version_no": { "type": ["integer", "null"], "minimum": 1 }, "updated_at": { "type": "string", "format": "date-time" } } },
+      "WorkflowPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/WorkflowSummary" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "CreateWorkflowRequest": { "type": "object", "additionalProperties": false, "required": ["name", "template_version_id"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "template_version_id": { "$ref": "#/components/schemas/UuidV7" } } },
+      "ReplaceWorkflowDraftRequest": { "type": "object", "additionalProperties": false, "required": ["definition"], "properties": { "definition": { "$ref": "#/components/schemas/WorkflowDefinition" }, "change_summary": { "type": "string", "maxLength": 2000 } } },
+      "WorkflowDraft": { "type": "object", "additionalProperties": false, "required": ["workflow_id", "project_id", "revision", "template_version_id", "definition", "updated_at"], "properties": { "workflow_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "revision": { "type": "integer", "minimum": 1 }, "template_version_id": { "$ref": "#/components/schemas/UuidV7" }, "definition": { "$ref": "#/components/schemas/WorkflowDefinition" }, "updated_at": { "type": "string", "format": "date-time" } } },
+      "PublishWorkflowRequest": { "type": "object", "additionalProperties": false, "properties": { "release_note": { "type": "string", "maxLength": 4000 } } },
+      "WorkflowVersion": { "type": "object", "additionalProperties": false, "required": ["workflow_version_id", "workflow_id", "project_id", "version_no", "template_version_id", "role_catalog_version_id", "content_digest", "definition", "published_at"], "properties": { "workflow_version_id": { "$ref": "#/components/schemas/UuidV7" }, "workflow_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "version_no": { "type": "integer", "minimum": 1 }, "template_version_id": { "$ref": "#/components/schemas/UuidV7" }, "role_catalog_version_id": { "$ref": "#/components/schemas/UuidV7" }, "content_digest": { "$ref": "#/components/schemas/Digest" }, "definition": { "$ref": "#/components/schemas/WorkflowDefinition" }, "published_at": { "type": "string", "format": "date-time" } } },
+      "WorkflowVersionPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/WorkflowVersion" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "CapabilityBinding": { "type": "object", "additionalProperties": false, "required": ["capability_key", "version_ref", "schema_digest", "risk_ceiling"], "properties": { "capability_key": { "type": "string", "minLength": 1, "maxLength": 128 }, "version_ref": { "type": "string", "minLength": 1, "maxLength": 200 }, "schema_digest": { "$ref": "#/components/schemas/Digest" }, "risk_ceiling": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] } } },
+      "CapabilityBindingSetRequest": { "type": "object", "additionalProperties": false, "required": ["bindings"], "properties": { "bindings": { "type": "array", "uniqueItems": true, "maxItems": 100, "items": { "$ref": "#/components/schemas/CapabilityBinding" } } } },
+      "ArtifactRef": { "type": "object", "additionalProperties": false, "required": ["artifact_id", "artifact_type", "version", "media_type", "sha256", "size_bytes", "purpose", "access_scope"], "properties": { "artifact_id": { "$ref": "#/components/schemas/UuidV7" }, "artifact_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "version": { "type": "integer", "minimum": 1 }, "media_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "sha256": { "$ref": "#/components/schemas/Sha256Hex" }, "size_bytes": { "type": "integer", "minimum": 0 }, "purpose": { "type": "string", "minLength": 1, "maxLength": 128 }, "access_scope": { "const": "project" } } },
+      "EvidenceLocator": { "type": "object", "additionalProperties": false, "required": ["locator_type", "value"], "properties": { "locator_type": { "enum": ["PAGE", "SECTION", "RANGE", "URI_FRAGMENT", "JSON_POINTER", "OTHER"] }, "value": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "EvidenceRef": { "type": "object", "additionalProperties": false, "required": ["source_run_id", "evidence_artifact_ref"], "properties": { "source_run_id": { "$ref": "#/components/schemas/UuidV7" }, "evidence_artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "locator": { "$ref": "#/components/schemas/EvidenceLocator" } } },
+      "ParameterBinding": { "type": "object", "additionalProperties": false, "required": ["key", "value"], "properties": { "key": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$" }, "value": { "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }, { "type": "array", "items": { "type": ["string", "number", "boolean"] } }] } } },
+      "StartRunRequest": { "type": "object", "additionalProperties": false, "required": ["source_version_ids", "evidence_refs", "parameter_bindings"], "properties": { "source_version_ids": { "type": "array", "uniqueItems": true, "maxItems": 500, "items": { "$ref": "#/components/schemas/UuidV7" } }, "evidence_refs": { "type": "array", "uniqueItems": true, "maxItems": 500, "items": { "$ref": "#/components/schemas/EvidenceRef" } }, "parameter_bindings": { "type": "array", "uniqueItems": true, "maxItems": 200, "items": { "$ref": "#/components/schemas/ParameterBinding" } }, "workspace_grant_id": { "$ref": "#/components/schemas/UuidV7" } } },
+      "RunStatus": { "enum": ["QUEUED", "RUNNING", "WAITING_INPUT", "WAITING_APPROVAL", "PAUSING", "PAUSED", "CANCELLING", "CANCELLED", "RECOVERY_REQUIRED", "FAILED", "SUCCEEDED"] },
+      "TerminalStatus": { "enum": ["CANCELLED", "FAILED", "SUCCEEDED"] },
+      "TerminalReason": { "enum": ["COMPLETED_SUCCESSFULLY", "USER_CANCELLED", "APPROVAL_REJECTED", "USER_ENDED_INPUT_WAIT", "PLAN_REJECTED", "SYSTEM_FAILURE", "RECOVERY_ABORTED"] },
+      "RunTerminalConsistency": { "type": "object", "required": ["status", "terminal_reason"], "oneOf": [{ "properties": { "status": { "const": "SUCCEEDED" }, "terminal_reason": { "const": "COMPLETED_SUCCESSFULLY" } } }, { "properties": { "status": { "const": "FAILED" }, "terminal_reason": { "const": "SYSTEM_FAILURE" } } }, { "properties": { "status": { "const": "CANCELLED" }, "terminal_reason": { "enum": ["USER_CANCELLED", "APPROVAL_REJECTED", "USER_ENDED_INPUT_WAIT", "PLAN_REJECTED", "RECOVERY_ABORTED"] } } }, { "properties": { "status": { "enum": ["QUEUED", "RUNNING", "WAITING_INPUT", "WAITING_APPROVAL", "PAUSING", "PAUSED", "CANCELLING", "RECOVERY_REQUIRED"] }, "terminal_reason": { "type": "null" } } }] },
+      "RunTerminalOutcome": { "type": "object", "required": ["terminal_status", "terminal_reason"], "properties": { "terminal_status": { "$ref": "#/components/schemas/TerminalStatus" }, "terminal_reason": { "$ref": "#/components/schemas/TerminalReason" } }, "oneOf": [{ "properties": { "terminal_status": { "const": "SUCCEEDED" }, "terminal_reason": { "const": "COMPLETED_SUCCESSFULLY" } } }, { "properties": { "terminal_status": { "const": "FAILED" }, "terminal_reason": { "const": "SYSTEM_FAILURE" } } }, { "properties": { "terminal_status": { "const": "CANCELLED" }, "terminal_reason": { "enum": ["USER_CANCELLED", "APPROVAL_REJECTED", "USER_ENDED_INPUT_WAIT", "PLAN_REJECTED", "RECOVERY_ABORTED"] } } }] },
+      "Run": { "type": "object", "additionalProperties": false, "required": ["run_id", "project_id", "workflow_version_id", "status", "terminal_reason", "state_version", "pending_approval_count", "blocked_branch_count", "created_at", "updated_at"], "properties": { "run_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "workflow_version_id": { "$ref": "#/components/schemas/UuidV7" }, "source_run_id": { "oneOf": [{ "$ref": "#/components/schemas/UuidV7" }, { "type": "null" }] }, "active_plan_version_id": { "oneOf": [{ "$ref": "#/components/schemas/UuidV7" }, { "type": "null" }] }, "status": { "$ref": "#/components/schemas/RunStatus" }, "terminal_reason": { "oneOf": [{ "$ref": "#/components/schemas/TerminalReason" }, { "type": "null" }] }, "state_version": { "type": "integer", "minimum": 1 }, "pending_approval_count": { "type": "integer", "minimum": 0 }, "blocked_branch_count": { "type": "integer", "minimum": 0 }, "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" }, "terminal_at": { "type": ["string", "null"], "format": "date-time" } }, "allOf": [{ "$ref": "#/components/schemas/RunTerminalConsistency" }] },
+      "RunPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Run" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "AddInputAmendmentRequest": { "type": "object", "additionalProperties": false, "required": ["content", "source_version_ids", "evidence_refs"], "properties": { "content": { "type": "string", "minLength": 1, "maxLength": 50000 }, "source_version_ids": { "type": "array", "uniqueItems": true, "maxItems": 500, "items": { "$ref": "#/components/schemas/UuidV7" } }, "evidence_refs": { "type": "array", "uniqueItems": true, "maxItems": 500, "items": { "$ref": "#/components/schemas/EvidenceRef" } } } },
+      "InputAmendment": { "type": "object", "additionalProperties": false, "required": ["input_amendment_id", "run_id", "artifact_ref", "created_by", "created_at"], "properties": { "input_amendment_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "created_by": { "$ref": "#/components/schemas/UuidV7" }, "created_at": { "type": "string", "format": "date-time" } } },
+      "InputAmendmentPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/InputAmendment" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "RunPlanVersion": { "type": "object", "additionalProperties": false, "required": ["plan_version_id", "run_id", "version_no", "plan_artifact_ref", "validation_artifact_ref", "content_digest", "bound_at"], "properties": { "plan_version_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "version_no": { "type": "integer", "minimum": 1 }, "previous_plan_version_id": { "oneOf": [{ "$ref": "#/components/schemas/UuidV7" }, { "type": "null" }] }, "plan_artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "validation_artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "content_digest": { "$ref": "#/components/schemas/Digest" }, "bound_at": { "type": "string", "format": "date-time" } } },
+      "RunPlanVersionPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/RunPlanVersion" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "NodeAttempt": { "type": "object", "additionalProperties": false, "required": ["node_attempt_id", "run_id", "plan_version_id", "node_key", "attempt_no", "role_ref", "status", "created_at"], "properties": { "node_attempt_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "plan_version_id": { "$ref": "#/components/schemas/UuidV7" }, "node_key": { "$ref": "#/components/schemas/NodeKey" }, "attempt_no": { "type": "integer", "minimum": 1 }, "role_ref": { "enum": ["planner", "architect", "engineer", "validator", "researcher", "analyst", "writer", "skill_maintainer"] }, "status": { "enum": ["READY", "RUNNING", "WAITING_APPROVAL", "SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED", "UNKNOWN"] }, "previous_attempt_id": { "oneOf": [{ "$ref": "#/components/schemas/UuidV7" }, { "type": "null" }] }, "output_artifact_refs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRef" } }, "created_at": { "type": "string", "format": "date-time" }, "completed_at": { "type": ["string", "null"], "format": "date-time" } } },
+      "NodeAttemptPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/NodeAttempt" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "RunReport": { "type": "object", "additionalProperties": false, "required": ["run_id", "terminal_status", "terminal_reason", "report_artifact_ref", "plan_version_count", "node_attempt_count", "approval_count", "invocation_count", "generated_at"], "properties": { "run_id": { "$ref": "#/components/schemas/UuidV7" }, "terminal_status": { "$ref": "#/components/schemas/TerminalStatus" }, "terminal_reason": { "$ref": "#/components/schemas/TerminalReason" }, "report_artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "plan_version_count": { "type": "integer", "minimum": 0 }, "node_attempt_count": { "type": "integer", "minimum": 0 }, "approval_count": { "type": "integer", "minimum": 0 }, "invocation_count": { "type": "integer", "minimum": 0 }, "generated_at": { "type": "string", "format": "date-time" } }, "allOf": [{ "$ref": "#/components/schemas/RunTerminalOutcome" }] },
+      "CreateReworkRequest": { "type": "object", "additionalProperties": false, "required": ["feedback", "target_artifact_refs", "requested_scope", "new_workflow_version_id"], "properties": { "feedback": { "type": "string", "minLength": 1, "maxLength": 20000 }, "target_artifact_refs": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/components/schemas/ArtifactRef" } }, "requested_scope": { "enum": ["ARTIFACT", "AFFECTED_DOWNSTREAM", "FULL_RUN"] }, "new_workflow_version_id": { "oneOf": [{ "$ref": "#/components/schemas/UuidV7" }, { "type": "null" }] } } },
+      "ReworkRequest": { "type": "object", "additionalProperties": false, "required": ["rework_request_id", "source_run_id", "derived_run_id", "feedback_artifact_ref", "requested_scope", "created_at"], "properties": { "rework_request_id": { "$ref": "#/components/schemas/UuidV7" }, "source_run_id": { "$ref": "#/components/schemas/UuidV7" }, "derived_run_id": { "$ref": "#/components/schemas/UuidV7" }, "feedback_artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "requested_scope": { "enum": ["ARTIFACT", "AFFECTED_DOWNSTREAM", "FULL_RUN"] }, "created_at": { "type": "string", "format": "date-time" } } },
+      "ReworkRequestPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/ReworkRequest" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "ApprovalStatus": { "enum": ["PENDING", "APPROVED", "REJECTED", "EXPIRED", "REVOKED", "CONSUMED"] },
+      "ApprovalDecisionState": { "enum": ["APPROVED", "REJECTED", "EXPIRED", "REVOKED"] },
+      "ApprovalDecisionSource": { "enum": ["HUMAN", "LIFECYCLE"] },
+      "RiskLevel": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+      "CapabilityApprovalRequest": { "type": "object", "additionalProperties": false, "required": ["approval_request_id", "project_id", "run_id", "approval_kind", "request_digest", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "status", "valid_from", "expires_at", "max_uses", "remaining_uses", "created_at"], "properties": { "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "node_attempt_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_kind": { "const": "CAPABILITY" }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "action_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "action_digest": { "$ref": "#/components/schemas/Digest" }, "resource_scope_digest": { "$ref": "#/components/schemas/Digest" }, "tool_schema_version_ref": { "$ref": "#/components/schemas/Digest" }, "risk_level": { "$ref": "#/components/schemas/RiskLevel" }, "status": { "$ref": "#/components/schemas/ApprovalStatus" }, "valid_from": { "type": "string", "format": "date-time" }, "expires_at": { "type": "string", "format": "date-time" }, "max_uses": { "type": "integer", "minimum": 1 }, "remaining_uses": { "type": "integer", "minimum": 0 }, "created_at": { "type": "string", "format": "date-time" } } },
+      "WorkflowApprovalRequest": { "type": "object", "additionalProperties": false, "required": ["approval_request_id", "project_id", "run_id", "approval_kind", "request_digest", "workflow_approval_key", "subject_artifact_refs", "risk_level", "status", "created_at", "expires_at"], "properties": { "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "node_attempt_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_kind": { "const": "WORKFLOW" }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "workflow_approval_key": { "type": "string", "minLength": 1, "maxLength": 128 }, "subject_artifact_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/ArtifactRef" } }, "risk_level": { "$ref": "#/components/schemas/RiskLevel" }, "status": { "$ref": "#/components/schemas/ApprovalStatus" }, "created_at": { "type": "string", "format": "date-time" }, "expires_at": { "type": "string", "format": "date-time" } } },
+      "PatchApplyApprovalRequest": { "type": "object", "additionalProperties": false, "required": ["approval_request_id", "project_id", "run_id", "approval_kind", "request_digest", "patch_id", "patch_digest", "workspace_grant_id", "expected_manifest_digest", "validation_report_ref", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "status", "valid_from", "expires_at", "max_uses", "remaining_uses", "created_at"], "properties": { "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "node_attempt_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_kind": { "const": "PATCH_APPLY" }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "patch_id": { "$ref": "#/components/schemas/UuidV7" }, "patch_digest": { "$ref": "#/components/schemas/Digest" }, "workspace_grant_id": { "$ref": "#/components/schemas/UuidV7" }, "expected_manifest_digest": { "$ref": "#/components/schemas/Digest" }, "validation_report_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "action_type": { "const": "patch.apply" }, "action_digest": { "$ref": "#/components/schemas/Digest" }, "resource_scope_digest": { "$ref": "#/components/schemas/Digest" }, "tool_schema_version_ref": { "$ref": "#/components/schemas/Digest" }, "risk_level": { "$ref": "#/components/schemas/RiskLevel" }, "status": { "$ref": "#/components/schemas/ApprovalStatus" }, "valid_from": { "type": "string", "format": "date-time" }, "expires_at": { "type": "string", "format": "date-time" }, "max_uses": { "type": "integer", "minimum": 1 }, "remaining_uses": { "type": "integer", "minimum": 0 }, "created_at": { "type": "string", "format": "date-time" } } },
+      "CreateCapabilityApprovalDecisionRequest": { "type": "object", "additionalProperties": false, "required": ["approval_kind", "decision", "request_digest", "reason"], "properties": { "approval_kind": { "const": "CAPABILITY" }, "decision": { "enum": ["APPROVED", "REJECTED"] }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "CreateWorkflowApprovalDecisionRequest": { "type": "object", "additionalProperties": false, "required": ["approval_kind", "decision", "request_digest", "reason"], "properties": { "approval_kind": { "const": "WORKFLOW" }, "decision": { "enum": ["APPROVED", "REJECTED"] }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "CreatePatchApplyApprovalDecisionRequest": { "type": "object", "additionalProperties": false, "required": ["approval_kind", "decision", "request_digest", "reason"], "properties": { "approval_kind": { "const": "PATCH_APPLY" }, "decision": { "enum": ["APPROVED", "REJECTED"] }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "CapabilityApprovalDecision": { "type": "object", "additionalProperties": false, "required": ["decision_id", "approval_request_id", "approval_kind", "request_digest", "decision", "decision_source", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "valid_from", "expires_at", "max_uses", "remaining_uses", "decided_by", "decided_at", "reason"], "properties": { "decision_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_kind": { "const": "CAPABILITY" }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "decision": { "$ref": "#/components/schemas/ApprovalDecisionState" }, "decision_source": { "$ref": "#/components/schemas/ApprovalDecisionSource" }, "action_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "action_digest": { "$ref": "#/components/schemas/Digest" }, "resource_scope_digest": { "$ref": "#/components/schemas/Digest" }, "tool_schema_version_ref": { "$ref": "#/components/schemas/Digest" }, "risk_level": { "$ref": "#/components/schemas/RiskLevel" }, "valid_from": { "type": "string", "format": "date-time" }, "expires_at": { "type": "string", "format": "date-time" }, "max_uses": { "type": "integer", "minimum": 1 }, "remaining_uses": { "type": "integer", "minimum": 0 }, "decided_by": { "$ref": "#/components/schemas/UuidV7" }, "decided_at": { "type": "string", "format": "date-time" }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "WorkflowApprovalDecision": { "type": "object", "additionalProperties": false, "required": ["decision_id", "approval_request_id", "approval_kind", "request_digest", "decision", "decision_source", "workflow_approval_key", "subject_artifact_refs", "decided_by", "decided_at", "reason"], "properties": { "decision_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_kind": { "const": "WORKFLOW" }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "decision": { "$ref": "#/components/schemas/ApprovalDecisionState" }, "decision_source": { "$ref": "#/components/schemas/ApprovalDecisionSource" }, "workflow_approval_key": { "type": "string", "minLength": 1, "maxLength": 128 }, "subject_artifact_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/ArtifactRef" } }, "decided_by": { "$ref": "#/components/schemas/UuidV7" }, "decided_at": { "type": "string", "format": "date-time" }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "PatchApplyApprovalDecision": { "type": "object", "additionalProperties": false, "required": ["decision_id", "approval_request_id", "approval_kind", "request_digest", "decision", "decision_source", "patch_id", "patch_digest", "workspace_grant_id", "expected_manifest_digest", "validation_report_ref", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "valid_from", "expires_at", "max_uses", "remaining_uses", "decided_by", "decided_at", "reason"], "properties": { "decision_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "approval_kind": { "const": "PATCH_APPLY" }, "request_digest": { "$ref": "#/components/schemas/Digest" }, "decision": { "$ref": "#/components/schemas/ApprovalDecisionState" }, "decision_source": { "$ref": "#/components/schemas/ApprovalDecisionSource" }, "patch_id": { "$ref": "#/components/schemas/UuidV7" }, "patch_digest": { "$ref": "#/components/schemas/Digest" }, "workspace_grant_id": { "$ref": "#/components/schemas/UuidV7" }, "expected_manifest_digest": { "$ref": "#/components/schemas/Digest" }, "validation_report_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "action_type": { "const": "patch.apply" }, "action_digest": { "$ref": "#/components/schemas/Digest" }, "resource_scope_digest": { "$ref": "#/components/schemas/Digest" }, "tool_schema_version_ref": { "$ref": "#/components/schemas/Digest" }, "risk_level": { "$ref": "#/components/schemas/RiskLevel" }, "valid_from": { "type": "string", "format": "date-time" }, "expires_at": { "type": "string", "format": "date-time" }, "max_uses": { "type": "integer", "minimum": 1 }, "remaining_uses": { "type": "integer", "minimum": 0 }, "decided_by": { "$ref": "#/components/schemas/UuidV7" }, "decided_at": { "type": "string", "format": "date-time" }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } } },
+      "CapabilityApprovalPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/CapabilityApprovalRequest" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "WorkflowApprovalPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/WorkflowApprovalRequest" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "ApplyPatchRequest": { "type": "object", "additionalProperties": false, "required": ["approval_request_id", "expected_manifest_digest"], "properties": { "approval_request_id": { "$ref": "#/components/schemas/UuidV7" }, "expected_manifest_digest": { "$ref": "#/components/schemas/Digest" } } },
+      "SkillVersionSummary": { "type": "object", "additionalProperties": false, "required": ["skill_version_id", "skill_key", "version", "package_digest", "status", "capability_keys"], "properties": { "skill_version_id": { "$ref": "#/components/schemas/UuidV7" }, "skill_key": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$" }, "version": { "type": "string", "minLength": 1, "maxLength": 64 }, "package_digest": { "$ref": "#/components/schemas/Digest" }, "status": { "const": "PUBLISHED" }, "capability_keys": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 128 } } } },
+      "SkillVersionPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/SkillVersionSummary" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "SkillImportRequest": { "type": "object", "additionalProperties": false, "required": ["package_artifact_ref", "requested_name"], "properties": { "package_artifact_ref": { "$ref": "#/components/schemas/ArtifactRef" }, "requested_name": { "type": "string", "minLength": 1, "maxLength": 200 } } },
+      "McpConnection": { "type": "object", "additionalProperties": false, "required": ["connection_id", "project_id", "name", "transport", "status", "exposure_status", "created_at"], "properties": { "connection_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "transport": { "enum": ["STDIO", "HTTP"] }, "status": { "enum": ["UNTESTED", "TESTING", "AVAILABLE", "FAILED", "DISABLED"] }, "exposure_status": { "enum": ["HIDDEN", "REVIEW_REQUIRED", "ENABLED"] }, "credential_ref": { "type": ["string", "null"], "maxLength": 200 }, "created_at": { "type": "string", "format": "date-time" } } },
+      "CreateMcpConnectionRequest": { "type": "object", "additionalProperties": false, "required": ["name", "transport", "connection_ref", "credential_ref"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "transport": { "enum": ["STDIO", "HTTP"] }, "connection_ref": { "type": "string", "minLength": 1, "maxLength": 2000 }, "credential_ref": { "type": ["string", "null"], "maxLength": 200 } } },
+      "McpConnectionPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/McpConnection" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "McpToolSnapshot": { "type": "object", "additionalProperties": false, "required": ["tool_snapshot_id", "connection_id", "tool_key", "schema_digest", "discovery_status", "exposure_status", "discovered_at"], "properties": { "tool_snapshot_id": { "$ref": "#/components/schemas/UuidV7" }, "connection_id": { "$ref": "#/components/schemas/UuidV7" }, "tool_key": { "type": "string", "minLength": 1, "maxLength": 200 }, "schema_digest": { "$ref": "#/components/schemas/Digest" }, "discovery_status": { "enum": ["DISCOVERED", "CHANGED", "REMOVED"] }, "exposure_status": { "enum": ["HIDDEN", "REVIEW_REQUIRED", "ENABLED"] }, "discovered_at": { "type": "string", "format": "date-time" } } },
+      "McpToolSnapshotPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/McpToolSnapshot" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "WorkspaceGrant": { "type": "object", "additionalProperties": false, "required": ["workspace_grant_id", "project_id", "directory_id", "allowed_actions", "status", "created_at"], "properties": { "workspace_grant_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "directory_id": { "$ref": "#/components/schemas/UuidV7" }, "display_name": { "type": "string", "maxLength": 255 }, "allowed_actions": { "type": "array", "uniqueItems": true, "items": { "enum": ["READ_BASELINE", "MATERIALIZE_COPY", "APPLY_PATCH"] } }, "status": { "enum": ["ACTIVE", "REVOKED", "EXPIRED"] }, "created_at": { "type": "string", "format": "date-time" }, "expires_at": { "type": ["string", "null"], "format": "date-time" } } },
+      "CreateWorkspaceGrantRequest": { "type": "object", "additionalProperties": false, "required": ["directory_id", "allowed_actions"], "properties": { "directory_id": { "$ref": "#/components/schemas/UuidV7" }, "allowed_actions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["READ_BASELINE", "MATERIALIZE_COPY", "APPLY_PATCH"] } }, "expires_at": { "type": ["string", "null"], "format": "date-time" } } },
+      "WorkspaceGrantPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/WorkspaceGrant" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "Artifact": { "type": "object", "additionalProperties": false, "required": ["artifact_id", "project_id", "run_id", "artifact_type", "version", "media_type", "sha256", "size_bytes", "purpose", "access_scope", "status", "created_at", "content_url"], "properties": { "artifact_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "run_id": { "$ref": "#/components/schemas/UuidV7" }, "node_attempt_id": { "$ref": "#/components/schemas/UuidV7" }, "artifact_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "version": { "type": "integer", "minimum": 1 }, "media_type": { "type": "string", "minLength": 1, "maxLength": 128 }, "sha256": { "$ref": "#/components/schemas/Sha256Hex" }, "size_bytes": { "type": "integer", "minimum": 0 }, "purpose": { "type": "string", "minLength": 1, "maxLength": 128 }, "access_scope": { "const": "project" }, "status": { "enum": ["COMMITTED", "UNAVAILABLE", "SUPERSEDED"] }, "created_at": { "type": "string", "format": "date-time" }, "content_url": { "type": "string", "format": "uri-reference" } } },
+      "ArtifactPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Artifact" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } },
+      "CreateArtifactReviewRequest": { "type": "object", "additionalProperties": false, "required": ["artifact_version", "artifact_digest", "decision", "comment"], "properties": { "artifact_version": { "type": "integer", "minimum": 1 }, "artifact_digest": { "$ref": "#/components/schemas/Digest" }, "decision": { "enum": ["ACCEPTED", "REJECTED", "CHANGES_REQUESTED"] }, "comment": { "type": "string", "minLength": 1, "maxLength": 10000 } } },
+      "ArtifactReview": { "type": "object", "additionalProperties": false, "required": ["review_id", "project_id", "artifact_id", "artifact_version", "artifact_digest", "decision", "comment", "reviewed_by", "reviewed_at"], "properties": { "review_id": { "$ref": "#/components/schemas/UuidV7" }, "project_id": { "$ref": "#/components/schemas/UuidV7" }, "artifact_id": { "$ref": "#/components/schemas/UuidV7" }, "artifact_version": { "type": "integer", "minimum": 1 }, "artifact_digest": { "$ref": "#/components/schemas/Digest" }, "decision": { "enum": ["ACCEPTED", "REJECTED", "CHANGES_REQUESTED"] }, "comment": { "type": "string", "minLength": 1, "maxLength": 10000 }, "reviewed_by": { "$ref": "#/components/schemas/UuidV7" }, "reviewed_at": { "type": "string", "format": "date-time" } } },
+      "ArtifactReviewPage": { "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "has_more"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactReview" } }, "next_cursor": { "type": ["string", "null"] }, "has_more": { "type": "boolean" } } }
+    }
+  },
+  "security": [{ "LocalSession": [] }]
+}

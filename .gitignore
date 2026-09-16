@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.pyright/
+dist/
+*.egg-info/
+
+# Node / Frontend
+node_modules/
+dist/
+*.log
+
+# .NET
+bin/
+obj/
+.vs/
+
+# Build / generated（生成物可重建，目录本身保留 .gitkeep）
+build/generated/*
+!build/generated/.gitkeep
+
+# Secrets / env（绝不提交真实密钥）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+id_rsa*
+
+# Runtime data（绝不提交运行时产物）
+data/
+.data/
+artifacts/
+checkpoints/
+runner-workspaces/
+*.sqlite
+*.db
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

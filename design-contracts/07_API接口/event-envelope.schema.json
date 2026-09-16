@@ -1,0 +1,527 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ai-native.local/run-event-envelope/1.0/schema.json",
+  "title": "Run Event Envelope 1.0",
+  "description": "Replayable, project-scoped and run-scoped event with a typed payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "project_id",
+    "run_id",
+    "sequence",
+    "occurred_at",
+    "trace_id",
+    "event_type",
+    "state_version",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "event_id": { "$ref": "#/$defs/uuidV7" },
+    "project_id": { "$ref": "#/$defs/uuidV7" },
+    "run_id": { "$ref": "#/$defs/uuidV7" },
+    "node_attempt_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/uuidV7" },
+        { "type": "null" }
+      ]
+    },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "actor_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/uuidV7" },
+        { "type": "null" }
+      ]
+    },
+    "trace_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "event_type": {
+      "enum": [
+        "RunAccepted",
+        "RunStateChanged",
+        "RunCompleted",
+        "InputAmendmentAdded",
+        "PlannerAttemptStarted",
+        "PlannerAttemptCompleted",
+        "PlanValidationCompleted",
+        "PlanRouteSelected",
+        "RunPlanVersionBound",
+        "RunPlanVersionSwitched",
+        "NodeAttemptStarted",
+        "NodeAttemptCompleted",
+        "NodeAttemptFailed",
+        "NodeAttemptSkipped",
+        "NodeAttemptCancelled",
+        "ValidationCompleted",
+        "ReworkDirected",
+        "CapabilityApprovalRequested",
+        "WorkflowApprovalRequested",
+        "PatchApplyApprovalRequested",
+        "ApprovalDecided",
+        "ApprovalExpired",
+        "ApprovalRevoked",
+        "InvocationDispatched",
+        "InvocationSucceeded",
+        "InvocationFailed",
+        "InvocationUnknown",
+        "ArtifactCommitted",
+        "ArtifactReviewSubmitted",
+        "DerivedRunCreated",
+        "PatchApplyConflict",
+        "RecoveryRequired",
+        "RunReportReady"
+      ]
+    },
+    "state_version": { "type": "integer", "minimum": 1 },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        { "$ref": "#/$defs/runAcceptedEvent" },
+        { "$ref": "#/$defs/runStateEvent" },
+        { "$ref": "#/$defs/runCompletedEvent" },
+        { "$ref": "#/$defs/inputAmendmentEvent" },
+        { "$ref": "#/$defs/plannerStartedEvent" },
+        { "$ref": "#/$defs/plannerCompletedEvent" },
+        { "$ref": "#/$defs/planValidationEvent" },
+        { "$ref": "#/$defs/planRouteEvent" },
+        { "$ref": "#/$defs/planBoundEvent" },
+        { "$ref": "#/$defs/planSwitchedEvent" },
+        { "$ref": "#/$defs/nodeStartedEvent" },
+        { "$ref": "#/$defs/nodeCompletedEvent" },
+        { "$ref": "#/$defs/nodeFailedEvent" },
+        { "$ref": "#/$defs/nodeSkippedEvent" },
+        { "$ref": "#/$defs/nodeCancelledEvent" },
+        { "$ref": "#/$defs/validationEvent" },
+        { "$ref": "#/$defs/reworkEvent" },
+        { "$ref": "#/$defs/capabilityApprovalEvent" },
+        { "$ref": "#/$defs/workflowApprovalEvent" },
+        { "$ref": "#/$defs/patchApprovalEvent" },
+        { "$ref": "#/$defs/approvalDecidedEvent" },
+        { "$ref": "#/$defs/approvalExpiredEvent" },
+        { "$ref": "#/$defs/approvalRevokedEvent" },
+        { "$ref": "#/$defs/invocationDispatchedEvent" },
+        { "$ref": "#/$defs/invocationSucceededEvent" },
+        { "$ref": "#/$defs/invocationFailedEvent" },
+        { "$ref": "#/$defs/invocationUnknownEvent" },
+        { "$ref": "#/$defs/artifactEvent" },
+        { "$ref": "#/$defs/reviewEvent" },
+        { "$ref": "#/$defs/derivedRunEvent" },
+        { "$ref": "#/$defs/patchConflictEvent" },
+        { "$ref": "#/$defs/recoveryEvent" },
+        { "$ref": "#/$defs/reportEvent" }
+      ]
+    }
+  ],
+  "$defs": {
+    "uuidV7": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "runStatus": {
+      "enum": [
+        "QUEUED", "RUNNING", "WAITING_INPUT", "WAITING_APPROVAL", "PAUSING", "PAUSED",
+        "CANCELLING", "CANCELLED", "RECOVERY_REQUIRED", "FAILED",
+        "SUCCEEDED"
+      ]
+    },
+    "terminalStatus": { "enum": ["CANCELLED", "FAILED", "SUCCEEDED"] },
+    "terminalReason": {
+      "enum": [
+        "COMPLETED_SUCCESSFULLY", "USER_CANCELLED", "APPROVAL_REJECTED",
+        "USER_ENDED_INPUT_WAIT", "PLAN_REJECTED", "SYSTEM_FAILURE", "RECOVERY_ABORTED"
+      ]
+    },
+    "runStateTerminalConsistency": {
+      "type": "object", "required": ["current_status", "terminal_reason"],
+      "oneOf": [
+        { "properties": { "current_status": { "const": "SUCCEEDED" }, "terminal_reason": { "const": "COMPLETED_SUCCESSFULLY" } } },
+        { "properties": { "current_status": { "const": "FAILED" }, "terminal_reason": { "const": "SYSTEM_FAILURE" } } },
+        { "properties": { "current_status": { "const": "CANCELLED" }, "terminal_reason": { "enum": ["USER_CANCELLED", "APPROVAL_REJECTED", "USER_ENDED_INPUT_WAIT", "PLAN_REJECTED", "RECOVERY_ABORTED"] } } },
+        { "properties": { "current_status": { "enum": ["QUEUED", "RUNNING", "WAITING_INPUT", "WAITING_APPROVAL", "PAUSING", "PAUSED", "CANCELLING", "RECOVERY_REQUIRED"] }, "terminal_reason": { "type": "null" } } }
+      ]
+    },
+    "runTerminalOutcome": {
+      "type": "object", "required": ["terminal_status", "terminal_reason"],
+      "properties": { "terminal_status": { "$ref": "#/$defs/terminalStatus" }, "terminal_reason": { "$ref": "#/$defs/terminalReason" } },
+      "oneOf": [
+        { "properties": { "terminal_status": { "const": "SUCCEEDED" }, "terminal_reason": { "const": "COMPLETED_SUCCESSFULLY" } } },
+        { "properties": { "terminal_status": { "const": "FAILED" }, "terminal_reason": { "const": "SYSTEM_FAILURE" } } },
+        { "properties": { "terminal_status": { "const": "CANCELLED" }, "terminal_reason": { "enum": ["USER_CANCELLED", "APPROVAL_REJECTED", "USER_ENDED_INPUT_WAIT", "PLAN_REJECTED", "RECOVERY_ABORTED"] } } }
+      ]
+    },
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "artifact_type", "version", "media_type", "sha256", "size_bytes", "purpose", "access_scope"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/uuidV7" },
+        "artifact_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "version": { "type": "integer", "minimum": 1 },
+        "media_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sha256": { "$ref": "#/$defs/sha256Hex" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "purpose": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "access_scope": { "const": "project" }
+      }
+    },
+    "runAcceptedPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workflow_version_id", "template_version_id", "role_catalog_version_id"],
+      "properties": {
+        "workflow_version_id": { "$ref": "#/$defs/uuidV7" },
+        "template_version_id": { "$ref": "#/$defs/uuidV7" },
+        "role_catalog_version_id": { "$ref": "#/$defs/uuidV7" }
+      }
+    },
+    "runStatePayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["current_status", "terminal_reason", "reason"],
+      "properties": {
+        "previous_status": { "oneOf": [{ "$ref": "#/$defs/runStatus" }, { "type": "null" }] },
+        "current_status": { "$ref": "#/$defs/runStatus" },
+        "terminal_reason": { "oneOf": [{ "$ref": "#/$defs/terminalReason" }, { "type": "null" }] },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "pending_approval_count": { "type": "integer", "minimum": 0 },
+        "blocked_branch_count": { "type": "integer", "minimum": 0 }
+      },
+      "allOf": [{ "$ref": "#/$defs/runStateTerminalConsistency" }]
+    },
+    "runCompletedPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["terminal_status", "terminal_reason", "run_report_ready"],
+      "properties": {
+        "terminal_status": { "$ref": "#/$defs/terminalStatus" },
+        "terminal_reason": { "$ref": "#/$defs/terminalReason" },
+        "run_report_ready": { "type": "boolean" },
+        "reason": { "type": "string", "maxLength": 500 }
+      },
+      "allOf": [{ "$ref": "#/$defs/runTerminalOutcome" }]
+    },
+    "inputAmendmentPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["input_amendment_id", "artifact_ref", "planner_attempt_required"],
+      "properties": {
+        "input_amendment_id": { "$ref": "#/$defs/uuidV7" },
+        "artifact_ref": { "$ref": "#/$defs/artifactRef" },
+        "planner_attempt_required": { "const": true }
+      }
+    },
+    "plannerAttemptPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node_attempt_id", "attempt_no"],
+      "properties": {
+        "node_attempt_id": { "$ref": "#/$defs/uuidV7" },
+        "attempt_no": { "type": "integer", "minimum": 1 },
+        "plan_proposal_artifact_ref": { "$ref": "#/$defs/artifactRef" }
+      }
+    },
+    "planValidationPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["plan_id", "decision", "violation_count", "warning_count"],
+      "properties": {
+        "plan_id": { "$ref": "#/$defs/uuidV7" },
+        "decision": { "enum": ["VALID", "INVALID", "NEEDS_INPUT"] },
+        "violation_count": { "type": "integer", "minimum": 0 },
+        "warning_count": { "type": "integer", "minimum": 0 },
+        "result_artifact_ref": { "$ref": "#/$defs/artifactRef" }
+      }
+    },
+    "planRoutePayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["plan_id", "route"],
+      "properties": {
+        "plan_id": { "$ref": "#/$defs/uuidV7" },
+        "route": { "enum": ["EXECUTE", "HOLD_FOR_USER", "REJECT"] },
+        "reason": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "planVersionPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["plan_version_id", "version_no", "content_digest"],
+      "properties": {
+        "plan_version_id": { "$ref": "#/$defs/uuidV7" },
+        "version_no": { "type": "integer", "minimum": 1 },
+        "content_digest": { "$ref": "#/$defs/digest" },
+        "previous_plan_version_id": { "oneOf": [{ "$ref": "#/$defs/uuidV7" }, { "type": "null" }] }
+      }
+    },
+    "nodeAttemptPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node_attempt_id", "node_key", "attempt_no"],
+      "properties": {
+        "node_attempt_id": { "$ref": "#/$defs/uuidV7" },
+        "node_key": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+        "attempt_no": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["READY", "RUNNING", "WAITING_APPROVAL", "SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED", "UNKNOWN"] },
+        "result_artifact_refs": { "type": "array", "items": { "$ref": "#/$defs/artifactRef" } },
+        "error_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,95}$" },
+        "diagnostic_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,95}$" }
+      }
+    },
+    "validationPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["validation_id", "gate_key", "decision", "report_artifact_ref"],
+      "properties": {
+        "validation_id": { "$ref": "#/$defs/uuidV7" },
+        "gate_key": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "decision": { "enum": ["PASS", "REWORK", "BLOCKED"] },
+        "report_artifact_ref": { "$ref": "#/$defs/artifactRef" }
+      }
+    },
+    "reworkPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_node_key", "target_role_id", "previous_attempt_id", "rework_round"],
+      "properties": {
+        "target_node_key": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+        "target_role_id": { "enum": ["planner", "architect", "engineer", "validator", "researcher", "analyst", "writer", "skill_maintainer"] },
+        "previous_attempt_id": { "$ref": "#/$defs/uuidV7" },
+        "rework_round": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "capabilityApprovalRequestPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["approval_request_id", "approval_kind", "request_digest", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "valid_from", "expires_at", "max_uses", "remaining_uses"],
+      "properties": {
+        "approval_request_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_kind": { "const": "CAPABILITY" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "action_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "action_digest": { "$ref": "#/$defs/digest" },
+        "resource_scope_digest": { "$ref": "#/$defs/digest" },
+        "tool_schema_version_ref": { "$ref": "#/$defs/digest" },
+        "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "valid_from": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "remaining_uses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "workflowApprovalRequestPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["approval_request_id", "approval_kind", "request_digest", "workflow_approval_key", "subject_artifact_refs", "risk_level", "expires_at"],
+      "properties": {
+        "approval_request_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_kind": { "const": "WORKFLOW" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "workflow_approval_key": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "subject_artifact_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifactRef" } },
+        "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "patchApplyApprovalRequestPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["approval_request_id", "approval_kind", "request_digest", "patch_id", "patch_digest", "workspace_grant_id", "expected_manifest_digest", "validation_report_ref", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "valid_from", "expires_at", "max_uses", "remaining_uses"],
+      "properties": {
+        "approval_request_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_kind": { "const": "PATCH_APPLY" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "patch_id": { "$ref": "#/$defs/uuidV7" },
+        "patch_digest": { "$ref": "#/$defs/digest" },
+        "workspace_grant_id": { "$ref": "#/$defs/uuidV7" },
+        "expected_manifest_digest": { "$ref": "#/$defs/digest" },
+        "validation_report_ref": { "$ref": "#/$defs/artifactRef" },
+        "action_type": { "const": "patch.apply" },
+        "action_digest": { "$ref": "#/$defs/digest" },
+        "resource_scope_digest": { "$ref": "#/$defs/digest" },
+        "tool_schema_version_ref": { "$ref": "#/$defs/digest" },
+        "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "valid_from": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "remaining_uses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "capabilityApprovalDecisionPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["decision_id", "approval_request_id", "approval_kind", "request_digest", "decision", "decision_source", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "valid_from", "expires_at", "max_uses", "remaining_uses"],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_request_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_kind": { "const": "CAPABILITY" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "decision": { "enum": ["APPROVED", "REJECTED", "EXPIRED", "REVOKED"] },
+        "decision_source": { "enum": ["HUMAN", "LIFECYCLE"] },
+        "action_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "action_digest": { "$ref": "#/$defs/digest" },
+        "resource_scope_digest": { "$ref": "#/$defs/digest" },
+        "tool_schema_version_ref": { "$ref": "#/$defs/digest" },
+        "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "valid_from": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "remaining_uses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "workflowApprovalDecisionPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["decision_id", "approval_request_id", "approval_kind", "request_digest", "decision", "decision_source", "workflow_approval_key", "subject_artifact_refs"],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_request_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_kind": { "const": "WORKFLOW" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "decision": { "enum": ["APPROVED", "REJECTED", "EXPIRED", "REVOKED"] },
+        "decision_source": { "enum": ["HUMAN", "LIFECYCLE"] },
+        "workflow_approval_key": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "subject_artifact_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifactRef" } }
+      }
+    },
+    "patchApplyApprovalDecisionPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["decision_id", "approval_request_id", "approval_kind", "request_digest", "decision", "decision_source", "patch_id", "patch_digest", "workspace_grant_id", "expected_manifest_digest", "validation_report_ref", "action_type", "action_digest", "resource_scope_digest", "tool_schema_version_ref", "risk_level", "valid_from", "expires_at", "max_uses", "remaining_uses"],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_request_id": { "$ref": "#/$defs/uuidV7" },
+        "approval_kind": { "const": "PATCH_APPLY" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "decision": { "enum": ["APPROVED", "REJECTED", "EXPIRED", "REVOKED"] },
+        "decision_source": { "enum": ["HUMAN", "LIFECYCLE"] },
+        "patch_id": { "$ref": "#/$defs/uuidV7" },
+        "patch_digest": { "$ref": "#/$defs/digest" },
+        "workspace_grant_id": { "$ref": "#/$defs/uuidV7" },
+        "expected_manifest_digest": { "$ref": "#/$defs/digest" },
+        "validation_report_ref": { "$ref": "#/$defs/artifactRef" },
+        "action_type": { "const": "patch.apply" },
+        "action_digest": { "$ref": "#/$defs/digest" },
+        "resource_scope_digest": { "$ref": "#/$defs/digest" },
+        "tool_schema_version_ref": { "$ref": "#/$defs/digest" },
+        "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "valid_from": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "remaining_uses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "approvalDecisionPayload": {
+      "oneOf": [
+        { "$ref": "#/$defs/capabilityApprovalDecisionPayload" },
+        { "$ref": "#/$defs/workflowApprovalDecisionPayload" },
+        { "$ref": "#/$defs/patchApplyApprovalDecisionPayload" }
+      ]
+    },
+    "approvalHumanDecisionPayload": {
+      "allOf": [
+        { "$ref": "#/$defs/approvalDecisionPayload" },
+        { "type": "object", "properties": { "decision": { "enum": ["APPROVED", "REJECTED"] }, "decision_source": { "const": "HUMAN" } } }
+      ]
+    },
+    "approvalExpiredPayload": {
+      "allOf": [
+        { "$ref": "#/$defs/approvalDecisionPayload" },
+        { "type": "object", "properties": { "decision": { "const": "EXPIRED" }, "decision_source": { "const": "LIFECYCLE" } } }
+      ]
+    },
+    "approvalRevokedPayload": {
+      "allOf": [
+        { "$ref": "#/$defs/approvalDecisionPayload" },
+        { "type": "object", "properties": { "decision": { "const": "REVOKED" }, "decision_source": { "const": "LIFECYCLE" } } }
+      ]
+    },
+    "invocationPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["invocation_intent_id", "action_id", "capability_key", "status"],
+      "properties": {
+        "invocation_intent_id": { "$ref": "#/$defs/uuidV7" },
+        "action_id": { "$ref": "#/$defs/uuidV7" },
+        "capability_key": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "enum": ["DISPATCHED", "SUCCEEDED", "FAILED", "UNKNOWN"] },
+        "receipt_id": { "$ref": "#/$defs/uuidV7" },
+        "error_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,95}$" }
+      }
+    },
+    "artifactPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_ref", "artifact_type"],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/artifactRef" },
+        "artifact_type": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "reviewPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["review_id", "artifact_ref", "decision"],
+      "properties": {
+        "review_id": { "$ref": "#/$defs/uuidV7" },
+        "artifact_ref": { "$ref": "#/$defs/artifactRef" },
+        "decision": { "enum": ["ACCEPTED", "REJECTED", "CHANGES_REQUESTED"] }
+      }
+    },
+    "derivedRunPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rework_request_id", "source_run_id", "derived_run_id"],
+      "properties": {
+        "rework_request_id": { "$ref": "#/$defs/uuidV7" },
+        "source_run_id": { "$ref": "#/$defs/uuidV7" },
+        "derived_run_id": { "$ref": "#/$defs/uuidV7" }
+      }
+    },
+    "patchConflictPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["patch_id", "expected_manifest_digest", "actual_manifest_digest"],
+      "properties": {
+        "patch_id": { "$ref": "#/$defs/uuidV7" },
+        "expected_manifest_digest": { "$ref": "#/$defs/digest" },
+        "actual_manifest_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "recoveryPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reason_code", "recovery_kind"],
+      "properties": {
+        "reason_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,95}$" },
+        "recovery_kind": { "enum": ["RUN", "INVOCATION", "PATCH_APPLY", "CHECKPOINT"] },
+        "related_resource_id": { "$ref": "#/$defs/uuidV7" }
+      }
+    },
+    "reportPayload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["run_report_artifact_ref"],
+      "properties": { "run_report_artifact_ref": { "$ref": "#/$defs/artifactRef" } }
+    },
+    "eventCase": {
+      "type": "object",
+      "required": ["event_type", "payload"]
+    },
+    "runAcceptedEvent": { "properties": { "event_type": { "const": "RunAccepted" }, "payload": { "$ref": "#/$defs/runAcceptedPayload" } } },
+    "runStateEvent": { "properties": { "event_type": { "const": "RunStateChanged" }, "payload": { "$ref": "#/$defs/runStatePayload" } } },
+    "runCompletedEvent": { "properties": { "event_type": { "const": "RunCompleted" }, "payload": { "$ref": "#/$defs/runCompletedPayload" } } },
+    "inputAmendmentEvent": { "properties": { "event_type": { "const": "InputAmendmentAdded" }, "payload": { "$ref": "#/$defs/inputAmendmentPayload" } } },
+    "plannerStartedEvent": { "properties": { "event_type": { "const": "PlannerAttemptStarted" }, "payload": { "$ref": "#/$defs/plannerAttemptPayload" } } },
+    "plannerCompletedEvent": { "properties": { "event_type": { "const": "PlannerAttemptCompleted" }, "payload": { "$ref": "#/$defs/plannerAttemptPayload" } } },
+    "planValidationEvent": { "properties": { "event_type": { "const": "PlanValidationCompleted" }, "payload": { "$ref": "#/$defs/planValidationPayload" } } },
+    "planRouteEvent": { "properties": { "event_type": { "const": "PlanRouteSelected" }, "payload": { "$ref": "#/$defs/planRoutePayload" } } },
+    "planBoundEvent": { "properties": { "event_type": { "const": "RunPlanVersionBound" }, "payload": { "$ref": "#/$defs/planVersionPayload" } } },
+    "planSwitchedEvent": { "properties": { "event_type": { "const": "RunPlanVersionSwitched" }, "payload": { "$ref": "#/$defs/planVersionPayload" } } },
+    "nodeStartedEvent": { "properties": { "event_type": { "const": "NodeAttemptStarted" }, "payload": { "$ref": "#/$defs/nodeAttemptPayload" } } },
+    "nodeCompletedEvent": { "properties": { "event_type": { "const": "NodeAttemptCompleted" }, "payload": { "$ref": "#/$defs/nodeAttemptPayload" } } },
+    "nodeFailedEvent": { "properties": { "event_type": { "const": "NodeAttemptFailed" }, "payload": { "$ref": "#/$defs/nodeAttemptPayload" } } },
+    "nodeSkippedEvent": { "properties": { "event_type": { "const": "NodeAttemptSkipped" }, "payload": { "$ref": "#/$defs/nodeAttemptPayload" } } },
+    "nodeCancelledEvent": { "properties": { "event_type": { "const": "NodeAttemptCancelled" }, "payload": { "$ref": "#/$defs/nodeAttemptPayload" } } },
+    "validationEvent": { "properties": { "event_type": { "const": "ValidationCompleted" }, "payload": { "$ref": "#/$defs/validationPayload" } } },
+    "reworkEvent": { "properties": { "event_type": { "const": "ReworkDirected" }, "payload": { "$ref": "#/$defs/reworkPayload" } } },
+    "capabilityApprovalEvent": { "properties": { "event_type": { "const": "CapabilityApprovalRequested" }, "payload": { "$ref": "#/$defs/capabilityApprovalRequestPayload" } } },
+    "workflowApprovalEvent": { "properties": { "event_type": { "const": "WorkflowApprovalRequested" }, "payload": { "$ref": "#/$defs/workflowApprovalRequestPayload" } } },
+    "patchApprovalEvent": { "properties": { "event_type": { "const": "PatchApplyApprovalRequested" }, "payload": { "$ref": "#/$defs/patchApplyApprovalRequestPayload" } } },
+    "approvalDecidedEvent": { "properties": { "event_type": { "const": "ApprovalDecided" }, "payload": { "$ref": "#/$defs/approvalHumanDecisionPayload" } } },
+    "approvalExpiredEvent": { "properties": { "event_type": { "const": "ApprovalExpired" }, "payload": { "$ref": "#/$defs/approvalExpiredPayload" } } },
+    "approvalRevokedEvent": { "properties": { "event_type": { "const": "ApprovalRevoked" }, "payload": { "$ref": "#/$defs/approvalRevokedPayload" } } },
+    "invocationDispatchedEvent": { "properties": { "event_type": { "const": "InvocationDispatched" }, "payload": { "$ref": "#/$defs/invocationPayload" } } },
+    "invocationSucceededEvent": { "properties": { "event_type": { "const": "InvocationSucceeded" }, "payload": { "$ref": "#/$defs/invocationPayload" } } },
+    "invocationFailedEvent": { "properties": { "event_type": { "const": "InvocationFailed" }, "payload": { "$ref": "#/$defs/invocationPayload" } } },
+    "invocationUnknownEvent": { "properties": { "event_type": { "const": "InvocationUnknown" }, "payload": { "$ref": "#/$defs/invocationPayload" } } },
+    "artifactEvent": { "properties": { "event_type": { "const": "ArtifactCommitted" }, "payload": { "$ref": "#/$defs/artifactPayload" } } },
+    "reviewEvent": { "properties": { "event_type": { "const": "ArtifactReviewSubmitted" }, "payload": { "$ref": "#/$defs/reviewPayload" } } },
+    "derivedRunEvent": { "properties": { "event_type": { "const": "DerivedRunCreated" }, "payload": { "$ref": "#/$defs/derivedRunPayload" } } },
+    "patchConflictEvent": { "properties": { "event_type": { "const": "PatchApplyConflict" }, "payload": { "$ref": "#/$defs/patchConflictPayload" } } },
+    "recoveryEvent": { "properties": { "event_type": { "const": "RecoveryRequired" }, "payload": { "$ref": "#/$defs/recoveryPayload" } } },
+    "reportEvent": { "properties": { "event_type": { "const": "RunReportReady" }, "payload": { "$ref": "#/$defs/reportPayload" } } }
+  }
+}

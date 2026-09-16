@@ -1,0 +1,13 @@
+[project]
+name = "ai-native-runner"
+version = "0.1.0"
+description = "受限执行边界的 Runner（Python 独立依赖集；禁 FastAPI/SQLAlchemy/MAF/供应商 SDK/宿主直写）"
+requires-python = ">=3.12"
+# 依赖在 Day 3 实现 ExecutionProfile 时按需补充；保持极简以免引入受信依赖。
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.6",
+]

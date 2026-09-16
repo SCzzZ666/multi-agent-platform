@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_native"]
+
+[project]
+name = "ai-native-backend"
+version = "0.1.0"
+description = "API + Worker 控制平面后端（模块化单体，两进程）"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "sqlalchemy>=2.0.30",
+    "psycopg[binary]>=3.1.18",
+    "alembic>=1.13.1",
+    "pgvector>=0.3.0",
+    # MAF 唯一 DAG 执行引擎（CODEBASE-BL D10-11 / 02 基线）。★解除版本锁必须走 DCR。
+    "agent-framework-core==1.18.0",
+    # MAF 的 OpenAI 模型桥接（D10-11：只装实际使用的 Provider Adapter，不用全量 meta 包）。
+    # 注意：拆分包版本 1.14.3（核心已到 1.18.0），与 core 的版本漂移已作为兼容风险记录。
+    "agent-framework-openai>=1.14.3",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pyright>=1.1.370",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = ["src"]

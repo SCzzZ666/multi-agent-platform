@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ai-native.local/security/resource-scope/1.0/schema.json",
+  "title": "ResourceScope 1.0",
+  "description": "Closed, fail-closed resource scope used by the internal authorization gate.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/projectResourceScope"
+    },
+    {
+      "$ref": "#/$defs/workspaceScope"
+    },
+    {
+      "$ref": "#/$defs/externalDestinationScope"
+    },
+    {
+      "$ref": "#/$defs/toolResourceScope"
+    }
+  ],
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+    },
+    "uuidv7": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/key"
+      }
+    },
+    "resourceKeys": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[^*?\\u0000-\\u001f]+$"
+      }
+    },
+    "pathSegment": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^(?!\\.{1,2}$)[^\\\\/:\\u0000-\\u001f]+$"
+    },
+    "workspacePath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_path_segments",
+        "include_descendants"
+      ],
+      "properties": {
+        "relative_path_segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pathSegment"
+          }
+        },
+        "include_descendants": {
+          "type": "boolean"
+        }
+      }
+    },
+    "projectResourceScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_version",
+        "resource_type",
+        "actions",
+        "resource_kind",
+        "resource_ids"
+      ],
+      "properties": {
+        "scope_version": {
+          "const": "scope.v1"
+        },
+        "resource_type": {
+          "const": "PROJECT_RESOURCE"
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        },
+        "resource_kind": {
+          "$ref": "#/$defs/key"
+        },
+        "resource_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/uuidv7"
+          }
+        }
+      }
+    },
+    "workspaceScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_version",
+        "resource_type",
+        "actions",
+        "directory_id",
+        "paths"
+      ],
+      "properties": {
+        "scope_version": {
+          "const": "scope.v1"
+        },
+        "resource_type": {
+          "const": "WORKSPACE"
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        },
+        "directory_id": {
+          "$ref": "#/$defs/uuidv7"
+        },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/workspacePath"
+          }
+        }
+      }
+    },
+    "externalDestinationScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_version",
+        "resource_type",
+        "actions",
+        "destination_key",
+        "service_key",
+        "resource_keys"
+      ],
+      "properties": {
+        "scope_version": {
+          "const": "scope.v1"
+        },
+        "resource_type": {
+          "const": "EXTERNAL_DESTINATION"
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        },
+        "destination_key": {
+          "$ref": "#/$defs/key"
+        },
+        "service_key": {
+          "$ref": "#/$defs/key"
+        },
+        "account_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^*?\\u0000-\\u001f]+$"
+        },
+        "resource_keys": {
+          "$ref": "#/$defs/resourceKeys"
+        }
+      }
+    },
+    "toolResourceScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_version",
+        "resource_type",
+        "actions",
+        "tool_key",
+        "capability_key",
+        "tool_schema_digest",
+        "resource_keys"
+      ],
+      "properties": {
+        "scope_version": {
+          "const": "scope.v1"
+        },
+        "resource_type": {
+          "const": "TOOL_RESOURCE"
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        },
+        "tool_key": {
+          "$ref": "#/$defs/key"
+        },
+        "capability_key": {
+          "$ref": "#/$defs/key"
+        },
+        "tool_schema_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "resource_keys": {
+          "$ref": "#/$defs/resourceKeys"
+        }
+      }
+    }
+  }
+}

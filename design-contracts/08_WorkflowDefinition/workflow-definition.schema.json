@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ai-native.local/workflow-definition/1.0/schema.json",
+  "title": "WorkflowDefinition 1.0",
+  "description": "Minimal provider-neutral product graph that is deterministically compiled to a Microsoft Agent Framework Workflow.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workflow_key",
+    "name",
+    "input_contract_ref",
+    "output_contract_ref",
+    "entry_node_key",
+    "output_node_keys",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "workflow_key": {
+      "$ref": "#/$defs/key"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "input_contract_ref": {
+      "$ref": "#/$defs/contractRef"
+    },
+    "output_contract_ref": {
+      "$ref": "#/$defs/contractRef"
+    },
+    "entry_node_key": {
+      "$ref": "#/$defs/nodeKey"
+    },
+    "output_node_keys": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nodeKey"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+    },
+    "nodeKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "edgeKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "routeKey": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+    },
+    "contractRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,127}@[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "uuidv7": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "roleId": {
+      "enum": [
+        "planner",
+        "architect",
+        "engineer",
+        "validator",
+        "researcher",
+        "analyst",
+        "writer",
+        "skill_maintainer"
+      ]
+    },
+    "region": {
+      "enum": [
+        "FIXED_CONTROL",
+        "PROFESSIONAL"
+      ]
+    },
+    "activationMode": {
+      "enum": [
+        "ALL_INBOUND",
+        "ANY_INBOUND"
+      ]
+    },
+    "nodeBase": {
+      "type": "object",
+      "required": [
+        "node_key",
+        "name",
+        "kind",
+        "region",
+        "role_ref",
+        "input_contract_ref",
+        "output_contract_ref",
+        "activation_mode"
+      ],
+      "properties": {
+        "node_key": {
+          "$ref": "#/$defs/nodeKey"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "kind": {
+          "enum": [
+            "agent",
+            "skill",
+            "tool",
+            "transform",
+            "condition",
+            "approval"
+          ]
+        },
+        "region": {
+          "$ref": "#/$defs/region"
+        },
+        "role_ref": {
+          "$ref": "#/$defs/roleId"
+        },
+        "input_contract_ref": {
+          "$ref": "#/$defs/contractRef"
+        },
+        "output_contract_ref": {
+          "$ref": "#/$defs/contractRef"
+        },
+        "activation_mode": {
+          "$ref": "#/$defs/activationMode"
+        }
+      }
+    },
+    "agentNode": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/nodeBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "agent"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "skillNode": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/nodeBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "skill_version_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "skill"
+            },
+            "skill_version_id": {
+              "$ref": "#/$defs/uuidv7"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "toolBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_key",
+        "capability_key",
+        "tool_schema_digest"
+      ],
+      "properties": {
+        "tool_key": {
+          "$ref": "#/$defs/key"
+        },
+        "capability_key": {
+          "$ref": "#/$defs/key"
+        },
+        "tool_schema_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "tool_snapshot_id": {
+          "$ref": "#/$defs/uuidv7"
+        }
+      }
+    },
+    "toolNode": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/nodeBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "tool_binding"
+          ],
+          "properties": {
+            "kind": {
+              "const": "tool"
+            },
+            "tool_binding": {
+              "$ref": "#/$defs/toolBinding"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "transformNode": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/nodeBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "transform_key"
+          ],
+          "properties": {
+            "kind": {
+              "const": "transform"
+            },
+            "transform_key": {
+              "$ref": "#/$defs/key"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "conditionNode": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/nodeBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "condition_key",
+            "routes"
+          ],
+          "properties": {
+            "kind": {
+              "const": "condition"
+            },
+            "condition_key": {
+              "$ref": "#/$defs/key"
+            },
+            "routes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/routeKey"
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "approvalNode": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/nodeBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "approval_type"
+          ],
+          "properties": {
+            "kind": {
+              "const": "approval"
+            },
+            "role_ref": {
+              "const": "validator"
+            },
+            "approval_type": {
+              "enum": [
+                "CAPABILITY",
+                "WORKFLOW",
+                "PATCH_APPLY"
+              ]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/agentNode"
+        },
+        {
+          "$ref": "#/$defs/skillNode"
+        },
+        {
+          "$ref": "#/$defs/toolNode"
+        },
+        {
+          "$ref": "#/$defs/transformNode"
+        },
+        {
+          "$ref": "#/$defs/conditionNode"
+        },
+        {
+          "$ref": "#/$defs/approvalNode"
+        }
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_key",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "edge_key": {
+          "$ref": "#/$defs/edgeKey"
+        },
+        "from": {
+          "$ref": "#/$defs/nodeKey"
+        },
+        "to": {
+          "$ref": "#/$defs/nodeKey"
+        },
+        "route": {
+          "$ref": "#/$defs/routeKey"
+        }
+      }
+    }
+  }
+}

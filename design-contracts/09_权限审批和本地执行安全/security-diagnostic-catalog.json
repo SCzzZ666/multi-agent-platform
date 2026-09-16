@@ -1,0 +1,255 @@
+{
+  "catalog_version": "1.0",
+  "catalog_scope": "INTERNAL_SECURITY_DIAGNOSTICS",
+  "status": "frozen-theoretical",
+  "diagnostics": [
+    {
+      "code": "AUTH_SCOPE_DENIED",
+      "severity": "ERROR",
+      "meaning": "The requested action is not a provable subset of the fail-closed authorization intersection.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_SCOPE_EXCEEDED"
+    },
+    {
+      "code": "AUTH_SCOPE_INCOMPARABLE",
+      "severity": "ERROR",
+      "meaning": "One or more resource scopes cannot be compared deterministically.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_SCOPE_EXCEEDED"
+    },
+    {
+      "code": "APPROVAL_REQUIRED",
+      "severity": "INFO",
+      "meaning": "The current action requires a specific approval before authorization can be reevaluated.",
+      "default_action": "REQUEST_APPROVAL",
+      "public_error_code": "APPROVAL_REQUIRED"
+    },
+    {
+      "code": "APPROVAL_BINDING_MISMATCH",
+      "severity": "ERROR",
+      "meaning": "The approval binding no longer matches the current action, arguments, resources, schema or version facts.",
+      "default_action": "DENY",
+      "public_error_code": "APPROVAL_STALE"
+    },
+    {
+      "code": "APPROVAL_KIND_MISMATCH",
+      "severity": "ERROR",
+      "meaning": "The supplied approval type cannot authorize this action type.",
+      "default_action": "DENY",
+      "public_error_code": "APPROVAL_KIND_MISMATCH"
+    },
+    {
+      "code": "APPROVAL_EXPIRED",
+      "severity": "ERROR",
+      "meaning": "The approval validity interval has ended.",
+      "default_action": "DENY",
+      "public_error_code": "APPROVAL_EXPIRED"
+    },
+    {
+      "code": "APPROVAL_REVOKED",
+      "severity": "ERROR",
+      "meaning": "The approval was revoked before the action could be authorized for dispatch.",
+      "default_action": "DENY",
+      "public_error_code": "APPROVAL_STALE"
+    },
+    {
+      "code": "APPROVAL_ALREADY_CONSUMED",
+      "severity": "ERROR",
+      "meaning": "The approval has no remaining use and cannot be reused.",
+      "default_action": "DENY",
+      "public_error_code": "APPROVAL_STALE"
+    },
+    {
+      "code": "TOOL_NOT_ENABLED",
+      "severity": "ERROR",
+      "meaning": "The requested tool is hidden, disabled or not currently exposed to the project.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "code": "TOOL_SCHEMA_DRIFT",
+      "severity": "ERROR",
+      "meaning": "The current tool schema digest differs from the immutable action binding.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "code": "DATA_EGRESS_DENIED",
+      "severity": "ERROR",
+      "meaning": "The destination or data classification is outside the current egress policy.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_SCOPE_EXCEEDED"
+    },
+    {
+      "code": "MCP_ENDPOINT_DENIED",
+      "severity": "ERROR",
+      "meaning": "The MCP destination, redirect, transport identity or exposure state is not allowed.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "code": "CREDENTIAL_ACCESS_DENIED",
+      "severity": "ERROR",
+      "meaning": "The credential reference cannot be resolved for the current intent, destination, profile or scope.",
+      "default_action": "DENY",
+      "public_error_code": "CREDENTIAL_UNAVAILABLE"
+    },
+    {
+      "code": "INVOCATION_NOT_DISPATCHED",
+      "severity": "INFO",
+      "meaning": "The invocation intent was recorded but the external dispatch boundary was not crossed.",
+      "default_action": "REAUTHORIZE_IF_NEEDED",
+      "public_error_code": null
+    },
+    {
+      "code": "INVOCATION_UNKNOWN",
+      "severity": "ERROR",
+      "meaning": "The external action crossed the dispatch boundary but its outcome cannot currently be established.",
+      "default_action": "RECONCILE",
+      "public_error_code": "INVOCATION_OUTCOME_UNKNOWN"
+    },
+    {
+      "code": "NON_IDEMPOTENT_RETRY_DENIED",
+      "severity": "ERROR",
+      "meaning": "An automatic resend was requested for a non-idempotent action with an unknown outcome.",
+      "default_action": "RECONCILE",
+      "public_error_code": "INVOCATION_OUTCOME_UNKNOWN"
+    },
+    {
+      "code": "WORKSPACE_GRANT_INVALID",
+      "severity": "ERROR",
+      "meaning": "The workspace grant is expired, revoked, archived, project-mismatched or bound to a changed directory identity.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_REVOKED"
+    },
+    {
+      "code": "WORKSPACE_PATH_ESCAPE",
+      "severity": "ERROR",
+      "meaning": "The requested path or final handle identity escapes the authorized directory.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_SCOPE_EXCEEDED"
+    },
+    {
+      "code": "WORKSPACE_REPARSE_POINT_DENIED",
+      "severity": "ERROR",
+      "meaning": "A junction, symbolic link or other reparse point is not explicitly authorized.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_SCOPE_EXCEEDED"
+    },
+    {
+      "code": "EXECUTION_PROFILE_DENIED",
+      "severity": "ERROR",
+      "meaning": "The execution profile, executable identity, arguments, script digest or current status is not allowed.",
+      "default_action": "DENY",
+      "public_error_code": "CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "code": "RUNNER_LIMIT_EXCEEDED",
+      "severity": "ERROR",
+      "meaning": "The runner exceeded an enforced time, memory, CPU, process or output limit.",
+      "default_action": "TERMINATE_PROCESS_TREE",
+      "public_error_code": "CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "code": "PATCH_CONFLICT",
+      "severity": "ERROR",
+      "meaning": "The current host manifest or file identity differs from the approved patch expectation.",
+      "default_action": "STOP_BEFORE_WRITE",
+      "public_error_code": "PATCH_APPLY_CONFLICT"
+    },
+    {
+      "code": "PATCH_TEST_EVIDENCE_MISMATCH",
+      "severity": "ERROR",
+      "meaning": "The validation evidence is not bound to the current patch and source snapshot.",
+      "default_action": "DENY",
+      "public_error_code": "APPROVAL_STALE"
+    },
+    {
+      "code": "PATCH_APPLY_RECOVERY_REQUIRED",
+      "severity": "ERROR",
+      "meaning": "Patch application may be partial or uncertain and requires journal-based recovery.",
+      "default_action": "RECONCILE",
+      "public_error_code": "PATCH_APPLY_RECOVERY_REQUIRED"
+    },
+    {
+      "code": "PATCH_ROLLBACK_CONFLICT",
+      "severity": "ERROR",
+      "meaning": "Rollback would overwrite changes made after the failed patch operation.",
+      "default_action": "MANUAL_RECOVERY",
+      "public_error_code": "PATCH_APPLY_RECOVERY_REQUIRED"
+    }
+  ],
+  "legacy_mappings": [
+    {
+      "legacy_code": "INVOCATION_RESULT_UNKNOWN",
+      "current_code": "INVOCATION_UNKNOWN",
+      "reason": "Aligned with the frozen PLAN/node diagnostic naming while retaining an explicit migration record."
+    },
+    {
+      "legacy_code": "CAPABILITY_SCOPE_DENIED",
+      "current_code": "AUTH_SCOPE_DENIED",
+      "reason": "The new gate covers all authorization layers, not only capability bindings."
+    },
+    {
+      "legacy_code": "APPROVAL_EXPIRED_OR_REVOKED",
+      "current_codes": [
+        "APPROVAL_EXPIRED",
+        "APPROVAL_REVOKED",
+        "APPROVAL_ALREADY_CONSUMED"
+      ],
+      "reason": "Expiry, revocation and consumption are distinct immutable lifecycle facts."
+    },
+    {
+      "legacy_code": "CREDENTIAL_RESOLUTION_DENIED",
+      "current_code": "CREDENTIAL_ACCESS_DENIED",
+      "reason": "The denial covers authorization to resolve and inject, not only lookup failure."
+    },
+    {
+      "legacy_code": "PATH_ESCAPE_DETECTED",
+      "current_code": "WORKSPACE_PATH_ESCAPE",
+      "reason": "The current name identifies the governed workspace boundary."
+    },
+    {
+      "legacy_code": "REPARSE_POINT_DENIED",
+      "current_code": "WORKSPACE_REPARSE_POINT_DENIED",
+      "reason": "The current name identifies the governed workspace boundary."
+    },
+    {
+      "legacy_code": "RUNNER_PROFILE_DENIED",
+      "current_code": "EXECUTION_PROFILE_DENIED",
+      "reason": "Aligned with the immutable ExecutionProfile contract name."
+    },
+    {
+      "legacy_code": "PATCH_MANIFEST_CONFLICT",
+      "current_code": "PATCH_CONFLICT",
+      "reason": "Aligned with the frozen internal patch diagnostic while preserving this mapping."
+    },
+    {
+      "legacy_code": "PATCH_APPLY_PARTIAL",
+      "current_code": "PATCH_APPLY_RECOVERY_REQUIRED",
+      "reason": "Partial or uncertain application always enters the explicit recovery state."
+    }
+  ],
+  "not_owned_legacy_codes": [
+    {
+      "code": "RUN_FENCE_STALE",
+      "owner": "04/08 runtime ownership"
+    },
+    {
+      "code": "RUN_LEASE_CONFLICT",
+      "owner": "04/08 runtime ownership"
+    },
+    {
+      "code": "CHECKPOINT_INCOMPATIBLE",
+      "owner": "08 MAF checkpoint compatibility"
+    },
+    {
+      "code": "STATE_VERSION_STALE",
+      "owner": "04 persisted state projection"
+    },
+    {
+      "code": "RUN_BUDGET_EXCEEDED",
+      "owner": "05 runtime policy"
+    }
+  ]
+}
