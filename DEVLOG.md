@@ -77,8 +77,9 @@
 
 - [x] **R5 git 首次 commit** —— ✅ `aba8fc6`，`.env` 已确认不入库（`git ls-files` 无 .env）
 - [x] **R2 43 表族完整迁移** —— ✅ `alembic 0002-0013 (head)`：43 表 + sha256_digest 域 + 6 不可变触发器 + RLS(35) + 索引；种子 8 角色/3 模板；PG18 实测核对通过
-- [ ] **R3 后端最薄主线**：发布 Definition→建 Run→202+Operation→SSE（← 进行中）
-- [ ] R1 Run/NodeAttempt/RunPlanVersion 落库（随 R3 的 workflow_runtime 一并做）
+- [x] **R3 后端最薄主线** —— ✅ identity_project / workflow_definition（08 schema 校验 + publish）/ workflow_runtime（Run+RunEvent 落库）/ artifacts_evidence（登记）；真实 API 打通「发布 Definition→建 Run 202+Operation→SSE RUN_CREATED」，live uvicorn 实测 + 2 e2e 测试
+- [x] **R1 Run 落库** —— ✅（run / run_snapshot / run_event 真实落库）；NodeAttempt / RunPlanVersion 的代码写在 Worker/MAF 集成时补（R4）
+- [x] **QA 1.5 模型回归** —— ✅ `tests/integration/test_models_real.py` 真实调三家 + 证据 JSON（D12-11 §8.2）；默认套件排除，`-m real_model` 显式跑
 - [ ] R4 P4 补完：superstep / HITL / PG Checkpoint 自研存储（并行持续项）
 
 ---

@@ -18,6 +18,7 @@ dependencies = [
     "psycopg[binary]>=3.1.18",
     "alembic>=1.13.1",
     "pgvector>=0.3.0",
+    "jsonschema>=4.18",
     # MAF 唯一 DAG 执行引擎（CODEBASE-BL D10-11 / 02 基线）。★解除版本锁必须走 DCR。
     "agent-framework-core==1.18.0",
     # MAF 的 OpenAI 模型桥接（D10-11：只装实际使用的 Provider Adapter，不用全量 meta 包）。

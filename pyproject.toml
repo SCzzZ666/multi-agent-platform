@@ -8,3 +8,7 @@ requires-python = ">=3.12"
 # 但 runner 拥有独立依赖集（见 runner/pyproject.toml）。
 [tool.uv.workspace]
 members = ["backend", "runner"]
+
+[tool.pytest.ini_options]
+markers = ["real_model: 真实调用外部模型（默认排除，用 -m real_model 显式跑）"]
+addopts = "-m 'not real_model'"
