@@ -2,6 +2,13 @@
 from __future__ import annotations
 
 from ai_native.modules.capability_gateway.domain.binding import compute_binding_digests
+from ai_native.modules.capability_gateway.domain.intent import (
+    IdempotencyClass,
+    InvocationStatus,
+    can_auto_retry,
+    can_transition,
+    is_terminal,
+)
 from ai_native.modules.capability_gateway.domain.pdp import Effect, decide
 from ai_native.modules.capability_gateway.domain.scopes import ResourceScope, covers, intersect
 from ai_native.shared_kernel.jcs import canonicalize, jcs_digest
@@ -9,7 +16,7 @@ from ai_native.shared_kernel.jcs import canonicalize, jcs_digest
 D = lambda actions, **kw: ResourceScope("PROJECT_RESOURCE", frozenset(actions), **kw)
 
 
-def _proj(ids=("p1",), actions=("repo.read",), kind="repository"):
+def _proj(ids=("p1",), actions=("read",), kind="repository"):
     return ResourceScope("PROJECT_RESOURCE", frozenset(actions), resource_kind=kind, resource_ids=frozenset(ids))
 
 
@@ -118,3 +125,23 @@ def test_binding_scope_change_changes_digest() -> None:
     d2 = compute_binding_digests(**{**_BIND, "resource_scopes": [_proj(("p2",), ("read",))]})
     assert d1["resource_scope_digest"] != d2["resource_scope_digest"]
     assert d1["action_digest"] != d2["action_digest"]
+
+
+# ---- Invocation 状态机 ----
+def test_invocation_transitions() -> None:
+    assert can_transition(InvocationStatus.INTENT_RECORDED, InvocationStatus.DISPATCHING)
+    assert can_transition(InvocationStatus.DISPATCHING, InvocationStatus.SUCCEEDED)
+    assert can_transition(InvocationStatus.DISPATCHING, InvocationStatus.UNKNOWN)
+    assert not can_transition(InvocationStatus.SUCCEEDED, InvocationStatus.DISPATCHING)
+    assert not can_transition(InvocationStatus.UNKNOWN, InvocationStatus.DISPATCHING)  # 不倒退
+
+
+def test_non_idempotent_unknown_forbids_auto_retry() -> None:
+    assert not can_auto_retry(IdempotencyClass.NON_IDEMPOTENT, InvocationStatus.UNKNOWN)
+    assert can_auto_retry(IdempotencyClass.READ_ONLY, InvocationStatus.UNKNOWN)
+    assert can_auto_retry(IdempotencyClass.IDEMPOTENT, InvocationStatus.UNKNOWN)
+
+
+def test_terminal_status_no_retry() -> None:
+    assert not can_auto_retry(IdempotencyClass.IDEMPOTENT, InvocationStatus.SUCCEEDED)
+    assert is_terminal(InvocationStatus.SUCCEEDED) and not is_terminal(InvocationStatus.UNKNOWN)
