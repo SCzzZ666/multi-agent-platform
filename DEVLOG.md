@@ -86,8 +86,15 @@
 
 ## 2. 待办 / 下一步
 
-1. **commit Day 1**（建议优先，锁回滚点；确认 `.env` 被 gitignore 挡住）
-2. **Day 2 Skills 引擎**：包解析 / 封闭路径 / 不可变版本 / 受控热加载 + 经 Gateway+Runner 受控执行脚本，20 个有效 Skill，Skills 模板首个闭环
+**Day 2 = 补 Day1 主线另一半 + 基于真实 MAF 的完整编排 + Skills 模板首个闭环**（修正版，含用户 QA 13 处补充）
+
+0. [x] **operations_events 模块**（outbox + SSE 游标 + Operation 回执 + 审计摘要链）—— commit `2f9c53a`
+1. 隐性前置：Run/NodeAttempt **状态机代码**、identity 归档/成员、workflow_definition 完整语义校验、迁移收尾
+2. **编排内核落库**：Worker 领 Run(租约/fencing) → 由 08 定义驱动 MAF → NodeAttempt/RunEvent 落库
+3. 六类节点全映射 + **HITL**(approval→MAF HITL) + **PG Checkpoint 自研** + 恢复语义
+4. **安全底座**：Gateway 九层交集 / JCS 摘要 / Approval 原子消费(Workflow/Capability 隔离) / Intent / Credential / Runner(ExecutionProfile)
+5. **TemplateResolver**(11 §11.1) + Skill 目录可查询/退役 + 提示词可解析机制
+6. Skills 模板真实闭环(含 HITL + publish Receipt) + 20 有效 Skill + 测试交付物(D12-11 证据)
 
 ---
 
