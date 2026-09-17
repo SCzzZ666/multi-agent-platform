@@ -49,18 +49,3 @@ class Run(Base):
     row_version: Mapped[int] = mapped_column(BigInteger, default=1)
 
 
-class RunEvent(Base):
-    __tablename__ = "run_event"
-    __table_args__ = {"schema": "platform"}
-
-    id: Mapped[object] = mapped_column(Uuid, primary_key=True)
-    project_id: Mapped[object] = mapped_column(Uuid)
-    run_id: Mapped[object] = mapped_column(Uuid, ForeignKey("platform.run.id"))
-    event_seq: Mapped[int] = mapped_column(BigInteger)
-    event_type: Mapped[str] = mapped_column(Text)
-    state_version: Mapped[int] = mapped_column(BigInteger, default=0)
-    actor: Mapped[dict] = mapped_column(JSONB)
-    correlation_id: Mapped[str] = mapped_column(Text)
-    payload: Mapped[dict] = mapped_column(JSONB)
-    payload_digest: Mapped[str] = mapped_column(Text)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())

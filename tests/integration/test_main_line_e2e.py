@@ -72,15 +72,24 @@ def test_main_line_end_to_end() -> None:
     assert r.status_code == 200
     assert r.json()["state"] == "QUEUED"
 
-    # 7. 事件真实落库（SSE 回放在真实 uvicorn 进程上另行验证）
+    # 7. 事件 + outbox + 审计真实落库（SSE 回放在真实 uvicorn 进程上另行验证）
+    from sqlalchemy import select
+
     from ai_native.bootstrap.db import SessionLocal, project_context as ctx
-    from ai_native.modules.workflow_runtime.application import service as run_service
+    from ai_native.modules.operations_events.adapters.orm import AuditEvent, EventOutbox
+    from ai_native.modules.operations_events.application import service as ops_service
 
     s = SessionLocal()
     try:
         ctx(s, uuid.UUID(pid))
-        events = run_service.list_events(s, uuid.UUID(rid))
+        events = ops_service.list_events(s, uuid.UUID(rid))
         assert [e.event_type for e in events] == ["RUN_CREATED"]
+        # outbox：同事务至少一次发布
+        outbox = list(s.scalars(select(EventOutbox).where(EventOutbox.aggregate_id == uuid.UUID(rid))))
+        assert len(outbox) == 1 and outbox[0].published_at is None
+        # 审计：RUN_STARTED 追加写，摘要链 non-null
+        audits = list(s.scalars(select(AuditEvent).where(AuditEvent.project_id == uuid.UUID(pid)).order_by(AuditEvent.audit_seq)))
+        assert audits and audits[0].event_type == "RUN_STARTED" and audits[0].event_digest.startswith("sha256:")
     finally:
         s.close()
 

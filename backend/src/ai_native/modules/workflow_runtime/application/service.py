@@ -1,13 +1,16 @@
-"""workflow_runtime 应用用例：建 Run（快照+命令+事件同事务）→ 事件投影。"""
+"""workflow_runtime 应用用例：建 Run（快照+命令+事件+outbox+审计同事务）→ 状态投影。
+
+事件/outbox/审计统一走 operations_events 模块（单一事件事实源）。
+"""
 from __future__ import annotations
 
 import json
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ai_native.modules.operations_events.application.service import append_audit, emit_event
 from ai_native.modules.workflow_definition.adapters.orm import WorkflowVersion
-from ai_native.modules.workflow_runtime.adapters.orm import Run, RunEvent, RunSnapshot
+from ai_native.modules.workflow_runtime.adapters.orm import Run, RunSnapshot
 from ai_native.shared_kernel.digest import sha256_hex
 from ai_native.shared_kernel.ids import uuid7
 
@@ -45,31 +48,21 @@ def start_run(db: Session, project_id, workflow_version_id, snapshot: dict | Non
     )
     db.add(run)
     db.flush()
-    emit_event(db, run, "RUN_CREATED", {"workflow_version_id": str(workflow_version_id)})
-    return run
-
-
-def emit_event(db: Session, run: Run, event_type: str, payload: dict) -> RunEvent:
-    seq = (run.event_seq or 0) + 1
+    # 事件（run_event + event_outbox 同事务）+ 审计
+    seq = int(run.event_seq or 0) + 1
     run.event_seq = seq
-    ev = RunEvent(
-        id=uuid7(), project_id=run.project_id, run_id=run.id, event_seq=seq,
-        event_type=event_type, state_version=run.state_version or 0,
-        actor={}, correlation_id=str(uuid7()), payload=payload, payload_digest=_digest(payload),
+    emit_event(
+        db, run_id=run.id, project_id=run.project_id, event_seq=seq,
+        state_version=run.state_version or 0, event_type="RUN_CREATED",
+        payload={"workflow_version_id": str(workflow_version_id)}, aggregate_id=run.id,
     )
-    db.add(ev)
-    return ev
+    append_audit(
+        db, project_id=project_id, event_type="RUN_STARTED", actor={"kind": "system"},
+        subject={"run_id": str(run.id), "workflow_version_id": str(workflow_version_id)},
+        payload={"state": "QUEUED"},
+    )
+    return run
 
 
 def get_run(db: Session, run_id) -> Run | None:
     return db.get(Run, run_id)
-
-
-def list_events(db: Session, run_id, after_seq: int = 0) -> list[RunEvent]:
-    return list(
-        db.scalars(
-            select(RunEvent)
-            .where(RunEvent.run_id == run_id, RunEvent.event_seq > after_seq)
-            .order_by(RunEvent.event_seq)
-        )
-    )

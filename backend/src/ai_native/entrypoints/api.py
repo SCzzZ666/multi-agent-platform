@@ -13,6 +13,7 @@ from sqlalchemy import text
 from ai_native.bootstrap.config import Settings
 from ai_native.bootstrap.db import engine
 from ai_native.modules.identity_project.api.routes import router as identity_router
+from ai_native.modules.operations_events.api.routes import router as ops_router
 from ai_native.modules.workflow_definition.api.routes import router as workflow_router
 from ai_native.modules.workflow_runtime.api.routes import router as run_router
 
@@ -20,6 +21,7 @@ app = FastAPI(title="ai-native", description="多角色 Agent 协作平台 —�
 app.include_router(identity_router, prefix="/api/v1")
 app.include_router(workflow_router, prefix="/api/v1")
 app.include_router(run_router, prefix="/api/v1")
+app.include_router(ops_router, prefix="/api/v1")
 
 
 @app.get("/healthz")
