@@ -45,6 +45,7 @@ def compute_binding_digests(
         }
     )
     return {
+        "tool_schema_digest": tool_schema_digest,
         "args_digest": args_digest,
         "resource_scope_digest": resource_scope_digest,
         "action_digest": action_digest,
