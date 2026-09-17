@@ -49,3 +49,43 @@ class Run(Base):
     row_version: Mapped[int] = mapped_column(BigInteger, default=1)
 
 
+class RunLease(Base):
+    __tablename__ = "run_lease"
+    __table_args__ = {"schema": "platform"}
+
+    run_id: Mapped[object] = mapped_column(Uuid, ForeignKey("platform.run.id"), primary_key=True)
+    lease_owner: Mapped[str] = mapped_column(Text)
+    fencing_token: Mapped[int] = mapped_column(BigInteger)
+    heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    row_version: Mapped[int] = mapped_column(BigInteger, default=1)
+
+
+class NodeAttempt(Base):
+    __tablename__ = "node_attempt"
+    __table_args__ = {"schema": "platform"}
+
+    id: Mapped[object] = mapped_column(Uuid, primary_key=True)
+    project_id: Mapped[object] = mapped_column(Uuid)
+    run_id: Mapped[object] = mapped_column(Uuid, ForeignKey("platform.run.id"))
+    run_plan_version_id: Mapped[object | None] = mapped_column(Uuid, nullable=True)
+    node_key: Mapped[str] = mapped_column(Text)
+    task_id: Mapped[str] = mapped_column(Text)
+    role_ref: Mapped[str] = mapped_column(Text)
+    attempt_no: Mapped[int] = mapped_column(Integer)
+    rework_round: Mapped[int] = mapped_column(Integer, default=0)
+    previous_attempt_id: Mapped[object | None] = mapped_column(Uuid, nullable=True)
+    input_envelope_artifact_id: Mapped[object | None] = mapped_column(Uuid, nullable=True)
+    input_digest: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_envelope_artifact_id: Mapped[object | None] = mapped_column(Uuid, nullable=True)
+    result_digest: Mapped[str | None] = mapped_column(Text, nullable=True)
+    state: Mapped[str] = mapped_column(Text)
+    fencing_token: Mapped[int] = mapped_column(BigInteger)
+    state_version: Mapped[int] = mapped_column(BigInteger, default=0)
+    completion_receipt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
