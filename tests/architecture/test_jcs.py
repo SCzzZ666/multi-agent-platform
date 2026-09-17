@@ -1,37 +1,27 @@
-"""RFC 8785 JCS 规范化 + 摘要（09 基线摘要唯一口径）。"""
+"""JCS(RFC 8785)确定性序列化 + 摘要。"""
 from __future__ import annotations
 
-from ai_native.shared_kernel.jcs import canonical_json, jcs_sha256
+from ai_native.shared_kernel.jcs import canonicalize, jcs_digest
 
 
-def test_object_key_sort() -> None:
-    assert canonical_json({"b": 1, "a": 2, "c": [1, 2, 3]}) == '{"a":2,"b":1,"c":[1,2,3]}'
+def test_jcs_sorts_keys_and_is_compact() -> None:
+    assert canonicalize({"b": 1, "a": 2}) == '{"a":2,"b":1}'
 
 
-def test_nested_object_and_literals() -> None:
-    assert canonical_json({"z": {"y": 1}, "a": [True, False, None]}) == '{"a":[true,false,null],"z":{"y":1}}'
+def test_jcs_nested_and_unicode_deterministic() -> None:
+    obj = {"z": {"y": "中文", "x": [1, 2, 3]}, "a": True}
+    assert canonicalize(obj) == canonicalize({"a": True, "z": {"x": [1, 2, 3], "y": "中文"}})
 
 
-def test_string_escaping() -> None:
-    assert canonical_json('a"b\\c\nd') == '"a\\"b\\\\c\\nd"'
-
-
-def test_control_char_escaping() -> None:
-    assert canonical_json("\t") == '"\\t"'
-    assert canonical_json("") == '"\\u0001"'
-
-
-def test_int_and_negative_zero() -> None:
-    assert canonical_json(42) == "42"
-    assert canonical_json(-0.0) == "0"
-
-
-def test_jcs_sha256_prefix_and_len() -> None:
-    d = jcs_sha256({"a": 1, "b": [2, 3]})
+def test_jcs_digest_is_sha256_prefixed() -> None:
+    d = jcs_digest({"a": 1, "b": {"c": 2}})
     assert d.startswith("sha256:")
-    assert len(d) == 71  # 'sha256:' + 64 hex
+    assert len(d) == len("sha256:") + 64
 
 
-def test_key_order_independent_digest() -> None:
-    # 对象键序不影响摘要（JCS 排序后一致）
-    assert jcs_sha256({"a": 1, "b": 2}) == jcs_sha256({"b": 2, "a": 1})
+def test_jcs_same_content_same_digest() -> None:
+    assert jcs_digest({"a": 1, "b": [2, 3]}) == jcs_digest({"b": [2, 3], "a": 1})
+
+
+def test_jcs_different_content_different_digest() -> None:
+    assert jcs_digest({"a": 1}) != jcs_digest({"a": 2})

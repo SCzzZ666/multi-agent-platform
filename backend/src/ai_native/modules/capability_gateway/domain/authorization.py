@@ -1,23 +1,22 @@
-"""九层权限交集（失败关闭的单调交集）—— 09 基线 9.2。
+"""九层权限交集（09 §9.2，PDP 确定性策略，失败关闭）。
 
-每层只能收窄：任一缺失/失效/漂移/不可比即 DENY；Approval 不提权，只能对已在交集内的
-确定动作加人工确认（APPROVAL_REQUIRED ≠ ALLOW）。
+任一交集层缺失/失效/漂移/不可比 → DENY；Approval 不参与并集扩权，只把
+「已通过 8 层、但策略要求审批」的 APPROVAL_REQUIRED 抬到 ALLOW，永远不能让 DENY 变 ALLOW。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import Enum
 
-LAYER_NAMES: tuple[str, ...] = (
-    "subject_project",          # 主体—项目关系
-    "project_policy_workspace",  # Project 策略 + WorkspaceGrant
-    "role_ceiling",             # RoleCatalog 角色上限
-    "workflow_node_declaration",  # WorkflowVersion 节点声明
-    "runplan_task",             # 活动 RunPlanVersion 任务声明
-    "skill_version",            # SkillVersion 上限
-    "tool_schema_snapshot",     # Tool Schema Snapshot 与当前暴露状态
-    "runtime_egress_policy",    # 运行时安全与数据外发策略
-    "effective_approval",       # 有效 Approval（策略要求时）
+# 8 个基础交集层（不含运行期 Approval，后者由策略决定是否需要）
+BASE_LAYERS = (
+    "subject_project_membership",   # 主体—项目关系
+    "project_policy_and_workspace",  # Project 当前策略 ∩ WorkspaceGrant
+    "role_capability_ceiling",       # RoleCatalog 角色上限
+    "workflow_node_declaration",     # WorkflowVersion 节点声明
+    "active_plan_declaration",       # 活动 RunPlanVersion 任务声明
+    "skill_version_cap",             # SkillVersion 上限（用时）
+    "tool_schema_snapshot",          # Tool Schema Snapshot 与当前暴露状态
+    "runtime_security_egress",       # 当前运行时安全与数据外发策略
 )
 
 
@@ -27,29 +26,16 @@ class Decision(str, Enum):
     APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
 
 
-@dataclass(frozen=True)
-class LayerResult:
-    layer: str
-    decision: str  # ALLOW / DENY / APPROVAL_REQUIRED
-    reason: str = ""
-
-
-@dataclass(frozen=True)
-class PolicyDecision:
-    decision: Decision
-    diagnostics: tuple[str, ...] = ()
-
-
-def evaluate(layers: dict[str, LayerResult]) -> PolicyDecision:
-    """九层交集：缺失层级 → DENY（失败关闭）；任一层 DENY → DENY；
-    存在 APPROVAL_REQUIRED → APPROVAL_REQUIRED；否则 ALLOW。"""
-    missing = [n for n in LAYER_NAMES if n not in layers]
-    if missing:
-        return PolicyDecision(Decision.DENY, (f"缺失层级: {missing}",))
-    for name in LAYER_NAMES:
-        r = layers[name]
-        if r.decision == Decision.DENY.value:
-            return PolicyDecision(Decision.DENY, (f"{name}: {r.reason}",))
-    if any(layers[n].decision == Decision.APPROVAL_REQUIRED.value for n in LAYER_NAMES):
-        return PolicyDecision(Decision.APPROVAL_REQUIRED, ())
-    return PolicyDecision(Decision.ALLOW, ())
+def decide(
+    layers: dict[str, bool],
+    *,
+    approval_required: bool = False,
+    valid_approval: bool = False,
+) -> Decision:
+    """失败关闭的单调权限交集。layers 缺键视为 False（宁可拒绝）。"""
+    for name in BASE_LAYERS:
+        if not layers.get(name, False):
+            return Decision.DENY
+    if approval_required and not valid_approval:
+        return Decision.APPROVAL_REQUIRED
+    return Decision.ALLOW

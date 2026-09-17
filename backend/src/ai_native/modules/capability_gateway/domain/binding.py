@@ -1,72 +1,51 @@
-"""ActionBinding（不可变）+ 三个摘要（09 基线 9.4：RFC8785 JCS → SHA-256）。
+"""ActionBinding 三摘要（09 §9.4）：args / resource_scope / action。
 
-摘要顺序：Tool Schema 类型检查/默认值/拒未知字段 → scope 规范化 → JCS → SHA-256。
-args_digest、resource_scope_digest 分别算；action_digest 由两者 + tool_schema_digest +
-风险 + 排序后 credential_refs + 身份 组合得出。
+摘要顺序：按 Tool Schema 类型检查/规范化 → scope 规范化 → RFC8785 JCS → SHA-256。
+action_digest 由身份/risk/credential_refs + args_digest + scope_digest 组合（排除自身）。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from ai_native.modules.capability_gateway.domain.scopes import ResourceScope
+from ai_native.shared_kernel.jcs import jcs_digest
 
-from ai_native.shared_kernel.jcs import jcs_sha256
 
-
-@dataclass(frozen=True)
-class ActionBinding:
-    action_id: str
-    project_id: str
-    run_id: str | None
-    workflow_version_id: str | None
-    run_plan_version_id: str | None
-    node_attempt_id: str | None
-    tool_key: str
-    capability_key: str
-    tool_schema_digest: str
-    normalized_args: dict
-    resource_scopes: dict
-    risk: str
-    credential_refs: tuple[str, ...] = ()
-    args_digest: str = ""
-    resource_scope_digest: str = ""
-    action_digest: str = ""
-
-    @classmethod
-    def build(
-        cls,
-        *,
-        action_id: str,
-        project_id: str,
-        tool_key: str,
-        capability_key: str,
-        tool_schema_digest: str,
-        normalized_args: dict,
-        resource_scopes: dict,
-        risk: str,
-        credential_refs: tuple[str, ...] = (),
-        run_id: str | None = None,
-        workflow_version_id: str | None = None,
-        run_plan_version_id: str | None = None,
-        node_attempt_id: str | None = None,
-    ) -> "ActionBinding":
-        args_digest = jcs_sha256(normalized_args)
-        scope_digest = jcs_sha256(resource_scopes)
-        action_digest = jcs_sha256(
-            {
-                "args_digest": args_digest,
-                "resource_scope_digest": scope_digest,
-                "tool_schema_digest": tool_schema_digest,
-                "risk": risk,
-                "credential_refs": sorted(credential_refs),
-                "project_id": project_id,
-                "tool_key": tool_key,
-                "capability_key": capability_key,
-            }
-        )
-        return cls(
-            action_id=action_id, project_id=project_id, run_id=run_id,
-            workflow_version_id=workflow_version_id, run_plan_version_id=run_plan_version_id,
-            node_attempt_id=node_attempt_id, tool_key=tool_key, capability_key=capability_key,
-            tool_schema_digest=tool_schema_digest, normalized_args=normalized_args,
-            resource_scopes=resource_scopes, risk=risk, credential_refs=credential_refs,
-            args_digest=args_digest, resource_scope_digest=scope_digest, action_digest=action_digest,
-        )
+def compute_binding_digests(
+    *,
+    project_id: str,
+    run_id: str,
+    workflow_version_id: str,
+    run_plan_version_id: str,
+    node_attempt_id: str,
+    action_id: str,
+    tool_key: str,
+    capability_key: str,
+    tool_schema_digest: str,
+    normalized_args: dict,
+    resource_scopes: list[ResourceScope],
+    risk_level: str,
+    credential_refs: list[str],
+) -> dict[str, str]:
+    args_digest = jcs_digest(normalized_args)
+    resource_scope_digest = jcs_digest([s.to_dict() for s in resource_scopes])
+    action_digest = jcs_digest(
+        {
+            "project_id": project_id,
+            "run_id": run_id,
+            "workflow_version_id": workflow_version_id,
+            "run_plan_version_id": run_plan_version_id,
+            "node_attempt_id": node_attempt_id,
+            "action_id": action_id,
+            "tool_key": tool_key,
+            "capability_key": capability_key,
+            "tool_schema_digest": tool_schema_digest,
+            "args_digest": args_digest,
+            "resource_scope_digest": resource_scope_digest,
+            "risk_level": risk_level,
+            "credential_refs": sorted(credential_refs),
+        }
+    )
+    return {
+        "args_digest": args_digest,
+        "resource_scope_digest": resource_scope_digest,
+        "action_digest": action_digest,
+    }

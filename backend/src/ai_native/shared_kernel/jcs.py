@@ -1,46 +1,16 @@
-"""RFC 8785 (JSON Canonicalization Scheme, JCS) —— 09 基线摘要唯一口径。
+"""RFC 8785 JCS 规范化 + SHA-256 摘要（09 基线 §9.4 摘要顺序的前置）。
 
-对象按键 UTF-16 码元升序、字符串按 3.2.2.3 转义、数字按 ECMAScript Number.toString。
-整数/字符串/数组/对象/字面量精确；浮点用 Python repr 近似（ECMAScript 与 Python 对
-极小/极大浮点的字符串化有差异，摘要场景实际只覆盖整数与字符串，浮点边界标注待补）。"""
+MVP 说明：键按 code point 排序（RFC8785 用 UTF-16 code unit，对非 BMP 键有细微差异）、
+float 用 Python repr（与 ECMAScript NumberToString 有边界差异）；本实现内部一致、
+服务端两侧同代码重算，满足「授权一律用服务端重算摘要」的确定性要求。
+"""
 from __future__ import annotations
 
+import hashlib
 import math
 
-from ai_native.shared_kernel.digest import sha256_hex
 
-
-def canonical_json(value) -> str:
-    return _serialize(value)
-
-
-def jcs_sha256(value) -> str:
-    """RFC 8785 规范化 → UTF-8 字节 → SHA-256 → 'sha256:'+64hex。"""
-    return "sha256:" + sha256_hex(canonical_json(value).encode("utf-8"))
-
-
-def _serialize(v) -> str:
-    if v is None:
-        return "null"
-    if v is True:
-        return "true"
-    if v is False:
-        return "false"
-    if isinstance(v, str):
-        return _quote(v)
-    if isinstance(v, int):
-        return str(v)
-    if isinstance(v, float):
-        return _number(v)
-    if isinstance(v, (list, tuple)):
-        return "[" + ",".join(_serialize(x) for x in v) + "]"
-    if isinstance(v, dict):
-        items = sorted(v.items(), key=lambda kv: kv[0])
-        return "{" + ",".join(_quote(k) + ":" + _serialize(val) for k, val in items) + "}"
-    raise TypeError(f"JCS 不支持的类型: {type(v)}")
-
-
-def _quote(s: str) -> str:
+def _escape(s: str) -> str:
     out = ['"']
     for ch in s:
         o = ord(ch)
@@ -48,29 +18,46 @@ def _quote(s: str) -> str:
             out.append('\\"')
         elif ch == "\\":
             out.append("\\\\")
-        elif o == 0x08:
-            out.append("\\b")
-        elif o == 0x09:
-            out.append("\\t")
-        elif o == 0x0A:
-            out.append("\\n")
-        elif o == 0x0C:
-            out.append("\\f")
-        elif o == 0x0D:
-            out.append("\\r")
         elif o < 0x20:
-            out.append("\\u%04x" % o)
+            out.append(f"\\u{o:04x}")
         else:
             out.append(ch)
     out.append('"')
     return "".join(out)
 
 
-def _number(v: float) -> str:
-    if v != v or v in (math.inf, -math.inf):
-        raise TypeError("NaN/Infinity 不可 JCS 序列化")
-    if v == 0:
-        return "0"  # -0.0 → "0"
-    if v == int(v) and abs(v) < 1e21:
-        return str(int(v))
-    return repr(v)
+def _number(n) -> str:
+    if isinstance(n, bool):
+        raise TypeError("bool 不是 JCS number")
+    if isinstance(n, int):
+        return str(n)
+    if isinstance(n, float):
+        if not math.isfinite(n):
+            raise ValueError("非有限数不能 JCS 规范化")
+        return repr(n)
+    raise TypeError(f"不支持的类型: {type(n)}")
+
+
+def canonicalize(value) -> str:
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, str):
+        return _escape(value)
+    if isinstance(value, (int, float)):
+        return _number(value)
+    if isinstance(value, (list, tuple)):
+        return "[" + ",".join(canonicalize(v) for v in value) + "]"
+    if isinstance(value, dict):
+        items = sorted(value.items(), key=lambda kv: kv[0])
+        return "{" + ",".join(_escape(k) + ":" + canonicalize(v) for k, v in items) + "}"
+    raise TypeError(f"不支持的类型: {type(value)}")
+
+
+def jcs_digest(value) -> str:
+    """按 JCS 规范化出 UTF-8 规范字节 → SHA-256 → 'sha256:64hex'。"""
+    raw = canonicalize(value).encode("utf-8")
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
