@@ -40,3 +40,10 @@ def test_running_to_waiting_approval() -> None:
 def test_non_terminal() -> None:
     assert not is_terminal(RunState.QUEUED)
     assert not is_terminal(RunState.RUNNING)
+
+
+def test_waiting_approval_transitions() -> None:
+    # 审批通过 → RUNNING(重新校验);拒绝 → CANCELLED;不得直接跳 SUCCEEDED(06 §14.5)
+    assert can_transition(RunState.WAITING_APPROVAL, RunState.RUNNING)
+    assert can_transition(RunState.WAITING_APPROVAL, RunState.CANCELLED)
+    assert not can_transition(RunState.WAITING_APPROVAL, RunState.SUCCEEDED)

@@ -11,6 +11,7 @@ from agent_framework import Executor, WorkflowBuilder, WorkflowContext, handler
 
 from ai_native.providers.openai_compat import OpenAICompatProvider
 from ai_native.providers.ports import ModelRequest
+from ai_native.runtime.maf.approval import ApprovalExecutor
 from ai_native.runtime.transforms import CONDITION_REGISTRY, TRANSFORM_REGISTRY, role_prompt
 
 
@@ -73,7 +74,7 @@ def compile_definition(definition: dict, *, provider: OpenAICompatProvider, mode
                 raise ValueError(f"未注册的 condition_key: {n.get('condition_key')} (node {key})")
             executors[key] = _TransformExecutor(key, lambda d, f=cfn: {**d, "route": f(d)})
         elif kind == "approval":
-            raise NotImplementedError(f"{key}: approval(HITL) 待接入")
+            executors[key] = ApprovalExecutor(key, n.get("approval_type", "WORKFLOW"))
         elif kind in ("skill", "tool"):
             raise NotImplementedError(f"{key}: {kind} 待安全底座/技能层接入")
         else:

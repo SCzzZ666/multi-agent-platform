@@ -106,3 +106,44 @@ def fail_run(db: Session, run: Run, error: str) -> None:
         actor={"kind": "system"}, subject={"run_id": str(run.id)},
         payload={"state": RunState.FAILED.value, "error": error},
     )
+
+
+def set_waiting_approval(db: Session, run: Run, request_id: str) -> None:
+    """approval 节点触发 HITL:Run → WAITING_APPROVAL + APPROVAL_REQUESTED 事件。"""
+    if not can_transition(RunState(run.state), RunState.WAITING_APPROVAL):
+        raise RuntimeError(f"{run.state}→WAITING_APPROVAL 非法转换")
+    run.state = RunState.WAITING_APPROVAL.value
+    run.state_version = (run.state_version or 0) + 1
+    _emit(db, run, "APPROVAL_REQUESTED", {"request_id": request_id})
+    append_audit(
+        db, project_id=run.project_id, event_type="RUN_WAITING_APPROVAL",
+        actor={"kind": "approval"}, subject={"run_id": str(run.id), "request_id": request_id},
+        payload={"state": RunState.WAITING_APPROVAL.value},
+    )
+
+
+def resume_from_approval(db: Session, run: Run, reason: str = "") -> None:
+    """审批通过：WAITING_APPROVAL → RUNNING（06 §14.5 批准后重新校验/继续）。"""
+    if not can_transition(RunState(run.state), RunState.RUNNING):
+        raise RuntimeError(f"{run.state}→RUNNING 非法转换")
+    run.state = RunState.RUNNING.value
+    run.state_version = (run.state_version or 0) + 1
+    _emit(db, run, "APPROVAL_APPROVED", {"reason": reason})
+    append_audit(
+        db, project_id=run.project_id, event_type="RUN_APPROVAL_APPROVED",
+        actor={"kind": "approval"}, subject={"run_id": str(run.id)},
+        payload={"state": RunState.RUNNING.value, "reason": reason},
+    )
+
+
+def reject_run(db: Session, run: Run, reason: str) -> None:
+    """审批拒绝是受控非成功终止(06 §D06-12):→ CANCELLED + APPROVAL_REJECTED。"""
+    run.state = RunState.CANCELLED.value
+    run.ended_at = datetime.now(timezone.utc)
+    run.state_version = (run.state_version or 0) + 1
+    _emit(db, run, "APPROVAL_REJECTED", {"terminal_reason": TerminalReason.APPROVAL_REJECTED.value, "reason": reason})
+    append_audit(
+        db, project_id=run.project_id, event_type="RUN_APPROVAL_REJECTED",
+        actor={"kind": "approval"}, subject={"run_id": str(run.id)},
+        payload={"state": RunState.CANCELLED.value, "reason": reason},
+    )

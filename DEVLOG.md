@@ -91,7 +91,7 @@
 0. [x] **operations_events 模块**（outbox + SSE 游标 + Operation 回执 + 审计摘要链）—— commit `2f9c53a`
 1. [x] **Run/NodeAttempt 状态机代码** —— `state_machine.py`(转换规则+terminal_reason，6 测试)；identity 归档/成员 ⬜、workflow_definition 完整语义校验 ⬜、迁移收尾 ⬜
 2. [x] **编排内核落库** —— Worker 领 Run(租约/fencing) → 由 08 定义驱动编译 MAF → 真实模型 agent 节点 → NodeAttempt+多事件落库 → SUCCEEDED；真实端到端验证通过
-3. 六类节点全映射(agent/transform/condition 已通；**approval→HITL / skill / tool 待接**) + **PG Checkpoint 自研** + 恢复语义
+3. 六类节点全映射:agent / transform / condition / **approval(HITL)** 已通 —— approval 映射 MAF `request_info`+`@response_handler`，审批通过→`WAITING_APPROVAL→RUNNING→SUCCEEDED`，拒绝→`CANCELLED(APPROVAL_REJECTED)`；**skill / tool 待接**；PG Checkpoint 自研(现为内存态续跑)+ 恢复语义
 4. **安全底座**：Gateway 九层交集 / JCS 摘要 / Approval 原子消费(Workflow/Capability 隔离) / Intent / Credential / Runner(ExecutionProfile)
 5. **TemplateResolver**(11 §11.1) + Skill 目录可查询/退役 + 提示词可解析机制
 6. Skills 模板真实闭环(含 HITL + publish Receipt) + 20 有效 Skill + 测试交付物(D12-11 证据)
