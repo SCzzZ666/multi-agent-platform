@@ -65,20 +65,31 @@ def claim_next_run(db: Session, *, worker_id: str = "worker-1", lease_seconds: i
 
 
 def project_node(db: Session, run: Run, node: dict) -> None:
-    """投影一个已执行成功的节点 → NodeAttempt(SUCCEEDED) + 事件。"""
-    receipt = (
-        "sha256:"
-        + sha256_hex(f"{run.id}:{node['node_key']}:{node['role_ref']}".encode("utf-8"))
-    )
-    db.add(
-        NodeAttempt(
-            id=uuid7(), project_id=run.project_id, run_id=run.id,
-            node_key=node["node_key"], task_id=node["node_key"], role_ref=node["role_ref"],
-            attempt_no=1, rework_round=0, state=NodeAttemptState.SUCCEEDED.value,
-            fencing_token=1, state_version=0, completion_receipt=receipt,
-            ended_at=datetime.now(timezone.utc),
+    """投影一个已执行成功的节点 → NodeAttempt(SUCCEEDED) + 事件。
+
+    幂等：若该节点已在运行期自建 NodeAttempt（如 tool 经 Gateway 派发时），则只补事件、不重复建行。
+    """
+    existing = db.scalar(
+        select(NodeAttempt).where(
+            NodeAttempt.run_id == run.id,
+            NodeAttempt.node_key == node["node_key"],
+            NodeAttempt.attempt_no == 1,
         )
     )
+    if existing is None:
+        receipt = (
+            "sha256:"
+            + sha256_hex(f"{run.id}:{node['node_key']}:{node['role_ref']}".encode("utf-8"))
+        )
+        db.add(
+            NodeAttempt(
+                id=uuid7(), project_id=run.project_id, run_id=run.id,
+                node_key=node["node_key"], task_id=node["node_key"], role_ref=node["role_ref"],
+                attempt_no=1, rework_round=0, state=NodeAttemptState.SUCCEEDED.value,
+                fencing_token=1, state_version=0, completion_receipt=receipt,
+                ended_at=datetime.now(timezone.utc),
+            )
+        )
     _emit(db, run, "NODE_SUCCEEDED", {"node_key": node["node_key"], "role_ref": node["role_ref"]})
 
 

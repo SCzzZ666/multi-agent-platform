@@ -69,3 +69,18 @@ class InvocationIntent(Base):
     dispatch_not_before: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())
+
+
+class InvocationReceipt(Base):
+    __tablename__ = "invocation_receipt"
+    __table_args__ = {"schema": "platform"}
+
+    id: Mapped[object] = mapped_column(Uuid, primary_key=True)
+    project_id: Mapped[object] = mapped_column(Uuid)
+    invocation_intent_id: Mapped[object] = mapped_column(Uuid, ForeignKey("platform.invocation_intent.id"))
+    receipt_seq: Mapped[int] = mapped_column(Integer)
+    outcome: Mapped[str] = mapped_column(Text)  # SUCCEEDED/FAILED/UNKNOWN/RECONCILED_*
+    provider_operation_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_digest: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())

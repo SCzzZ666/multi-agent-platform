@@ -5,6 +5,7 @@ approval(HITL) 与 skill/tool 待后续接入时在此扩展。本模块全仓�
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Never
 
 from agent_framework import Executor, WorkflowBuilder, WorkflowContext, handler
@@ -77,7 +78,25 @@ class _SkillExecutor(Executor):
         await ctx.send_message({**data, "last_node": self._node_key, "skill_used": self._skill.get("name"), "last_output": resp.content})
 
 
-def compile_definition(definition: dict, *, provider: OpenAICompatProvider, model: str, skill_resolver=None) -> object:
+class _ToolExecutor(Executor):
+    """tool 节点：经 Gateway 派发（授权→Intent→执行→Receipt），在 worker 线程执行同步派发。"""
+
+    def __init__(self, node_key: str, tool_binding: dict, tool_dispatcher) -> None:
+        super().__init__(id=node_key)
+        self._node_key = node_key
+        self._binding = tool_binding
+        self._dispatcher = tool_dispatcher
+
+    @handler
+    async def process(self, data: dict, ctx: WorkflowContext[dict]) -> None:
+        result = await asyncio.to_thread(self._dispatcher, self._node_key, self._binding, data)
+        await ctx.send_message({
+            **data, "last_node": self._node_key,
+            "tool_outcome": result.get("outcome"), "tool_result": result.get("result"),
+        })
+
+
+def compile_definition(definition: dict, *, provider: OpenAICompatProvider, model: str, skill_resolver=None, tool_dispatcher=None) -> object:
     nodes = definition["nodes"]
     edges = definition["edges"]
     executors: dict[str, Executor] = {}
@@ -108,7 +127,9 @@ def compile_definition(definition: dict, *, provider: OpenAICompatProvider, mode
                 raise ValueError(f"skill_version 不可解析: {sid} (node {key})")
             executors[key] = _SkillExecutor(key, n["role_ref"], provider, model, skill)
         elif kind == "tool":
-            raise NotImplementedError(f"{key}: tool 节点经 Gateway 派发待接")
+            if tool_dispatcher is None:
+                raise ValueError(f"tool 节点需 tool_dispatcher: {key}")
+            executors[key] = _ToolExecutor(key, n.get("tool_binding", {}), tool_dispatcher)
         else:
             raise ValueError(f"{key}: 未知节点类型 {kind}")
 

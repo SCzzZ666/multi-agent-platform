@@ -16,19 +16,21 @@ import uuid
 
 from ai_native.bootstrap.config import Settings
 from ai_native.bootstrap.db import SessionLocal, project_context
+from ai_native.modules.capability_gateway.application.dispatch import dispatch_capability
 from ai_native.modules.catalog_registry.application import skill_service
 from ai_native.modules.workflow_definition.adapters.orm import WorkflowVersion
-from ai_native.modules.workflow_runtime.adapters.orm import Run
+from ai_native.modules.workflow_runtime.adapters.orm import NodeAttempt, Run
 from ai_native.modules.workflow_runtime.application import worker_service
 from ai_native.providers.openai_compat import OpenAICompatProvider
 from ai_native.runtime.maf.approval import ApprovalResponse
 from ai_native.runtime.maf.compiler import compile_definition
+from ai_native.shared_kernel.ids import uuid7
 
 # 内存态 HITL：run_id(str) → (workflow, definition)
 _WORKFLOWS: dict[str, tuple] = {}
 
 
-def _build_workflow(definition: dict, s: Settings, project_id=None):
+def _build_workflow(definition: dict, s: Settings, project_id=None, run_id=None):
     provider = OpenAICompatProvider("dashscope", s.dashscope_api_key, s.dashscope_base_url)
 
     def skill_resolver(skill_version_id) -> dict | None:
@@ -40,7 +42,25 @@ def _build_workflow(definition: dict, s: Settings, project_id=None):
         finally:
             db.close()
 
-    return compile_definition(definition, provider=provider, model="qwen-plus", skill_resolver=skill_resolver)
+    def tool_dispatcher(node_key, tool_binding, data) -> dict:
+        db = SessionLocal()
+        try:
+            project_context(db, str(project_id))
+            na = NodeAttempt(id=uuid7(), project_id=project_id, run_id=run_id, node_key=node_key,
+                             task_id=node_key, role_ref="engineer", attempt_no=1, rework_round=0,
+                             state="RUNNING", fencing_token=1, state_version=0)
+            db.add(na)
+            db.flush()
+            r = dispatch_capability(db, project_id=project_id, run_id=run_id, node_attempt_id=na.id,
+                                    tool_binding=tool_binding, input_data=data, fencing_token=1)
+            na.state = "SUCCEEDED" if r.get("dispatched") else "FAILED"
+            db.commit()
+            return r
+        finally:
+            db.close()
+
+    return compile_definition(definition, provider=provider, model="qwen-plus",
+                               skill_resolver=skill_resolver, tool_dispatcher=tool_dispatcher)
 
 
 def _approval_request_id(definition: dict) -> str | None:
@@ -68,7 +88,7 @@ async def run_once(project_id) -> tuple:
         definition = db.get(WorkflowVersion, wv_id).definition_json
         db.rollback()
 
-        workflow = _build_workflow(definition, s, project_id)
+        workflow = _build_workflow(definition, s, project_id, run_id=rid)
         try:
             result = await workflow.run({"input": "开发一个 TODO 应用"})
         except Exception as e:  # noqa: BLE001
