@@ -11,7 +11,7 @@
 | 开发日 | 对应计划 | 内容 | 状态 |
 |---|---|---|---|
 | **Day 1** | 第 1 周 | 后端基础 + MAF 协作内核 + 三家模型 | ✅ 核心达成（见 §1） |
-| Day 2 | 第 2 周 | Skills 引擎 + 20 Skill + 提示词雏形 | ⬜ 未开始 |
+| Day 2 | 第 2 周 | 编排完整化（六类节点/HITL/安全底座）+ Skills 能力层 | ⏳ 核心达成（见 §2） |
 | Day 3 | 第 3 周 | Web 控制台 + 50 Skill + 200 提示词 | ⬜ 未开始 |
 | Day 4 | 第 4 周 | 三模板真实端到端 + 发布材料 + 58 TC | ⬜ 未开始 |
 
@@ -84,17 +84,46 @@
 
 ---
 
-## 2. 待办 / 下一步
+## 2. Day 2（第 2 周）—— 实际开发记录
 
-**Day 2 = 补 Day1 主线另一半 + 基于真实 MAF 的完整编排 + Skills 模板首个闭环**（修正版，含用户 QA 13 处补充）
+> 实际重心：**把 MAF 编排从「内存最小闭环」落成「数据驱动 + 落库 + 六类节点 + 安全底座」的完整形态**；
+> Skills 作为首个被编排的模板载体（不是「只做 skill 封装」）。
 
-0. [x] **operations_events 模块**（outbox + SSE 游标 + Operation 回执 + 审计摘要链）—— commit `2f9c53a`
-1. [x] **Run/NodeAttempt 状态机代码** —— `state_machine.py`(转换规则+terminal_reason，6 测试)；identity 归档/成员 ⬜、workflow_definition 完整语义校验 ⬜、迁移收尾 ⬜
-2. [x] **编排内核落库** —— Worker 领 Run(租约/fencing) → 由 08 定义驱动编译 MAF → 真实模型 agent 节点 → NodeAttempt+多事件落库 → SUCCEEDED；真实端到端验证通过
-3. 六类节点全映射:agent / transform / condition / **approval(HITL)** 已通 —— approval 映射 MAF `request_info`+`@response_handler`，审批通过→`WAITING_APPROVAL→RUNNING→SUCCEEDED`，拒绝→`CANCELLED(APPROVAL_REJECTED)`；**skill / tool 待接**；PG Checkpoint 自研(现为内存态续跑)+ 恢复语义
-4. **安全底座**（确定性内核 ✅）：JCS(RFC8785)摘要 / 九层权限交集(失败关闭+Approval不提权) / ActionBinding 三摘要(服务端重算) / InvocationIntent 状态机(NON_IDEMPOTENT UNKNOWN 禁重发)——17 个 security 测试；**Approval 原子消费落库 / Credential Broker / Runner(ExecutionProfile) 待接**
-5. **TemplateResolver**(11 §11.1) + Skill 目录可查询/退役 + 提示词可解析机制
-6. Skills 模板真实闭环(含 HITL + publish Receipt) + 20 有效 Skill + 测试交付物(D12-11 证据)
+### 2.1 已完成块（真实证据，非 mock）
+
+| 块 | 内容 | commit | 真实证据 |
+|---|---|---|---|
+| 0 | operations_events（outbox + SSE 游标 + Operation 回执 + 审计摘要链） | `2f9c53a` | 事件/outbox/审计三点同事务落库断言；SSE `after_sequence` 去重 live 验证 |
+| 1 | Run/NodeAttempt 状态机 + 编排内核落库 | `f24c2cf` | QUEUED→SUCCEEDED、6×NodeAttempt、9 事件流 |
+| 2 | 六类节点全映射 agent/transform/condition/approval/skill/tool **（6/6）** | `b25b636` `ae4c158` `3797b13` | approval→MAF HITL(通过/拒绝)；skill 装载固定版本；tool 经 Gateway(Intent+Receipt) |
+| 3 | Skills 能力层：SKILL.md 解析 + 封闭路径 + 静态扫描 + 不可变版本目录 | `9584e58` | 7 测试；热加载追加不覆盖 |
+| 4 | 安全底座：JCS / 九层交集 PDP / ActionBinding 三摘要 / Intent 状态机 / 审批原子消费 / Credential Broker / Runner(ExecutionProfile 内核) | `dcf791c`…`16585e2` `d4ea858` | 安全域 + 审批消费(5 用例) + Credential(5) + ExecutionProfile(8) |
+
+### 2.2 关键真实验证
+
+- **编排内核**：Worker 领 Run(租约/fencing) → 由 08 定义数据驱动编译 MAF → 真实模型 agent → NodeAttempt+事件落库 → SUCCEEDED
+- **HITL**：通过 `WAITING_APPROVAL→RUNNING→SUCCEEDED`；拒绝 `CANCELLED + APPROVAL_REJECTED`
+- **skill 节点**：发布 Skill(固定版本) → 工作流挂 skill 节点 → 装载该版本指令 → SUCCEEDED(3 节点)
+- **tool 节点**：经 Gateway 派发 → `InvocationIntent(SUCCEEDED, READ_ONLY)` + `InvocationReceipt(SUCCEEDED)` 落库
+- **审批原子消费**：通过/幂等/拒绝/摘要不匹配/重鉴权拒绝；含审计+outbox 同事务
+- **测试**：93 passed（默认套件）+ 1 real_model（`pytest -m real_model`）
+
+### 2.3 用户 QA 揪出并修复的 5 处硬伤（`65d59e7`）
+
+1. PDP 空候选 scope fail-open → 改 DENY
+2. 派发前重鉴权 `member=True` 写死 → 改参数传入
+3. 两份相反 Invocation 状态机都绿 → 删错误的 `invocation.py`（保留 `intent.py`）
+4. 消费事务缺审计/outbox → 补 `append_audit`+`emit_event`
+5. `fencing_token` 收了不校验 → 比对 `run_lease`
+
+### 2.4 尚未完成（如实挂账）
+
+- **块5**：TemplateResolver(11 §11.1) / Skills 模板真实闭环（skill_maintainer→检查→validator→HITL→publish Tool 含 Receipt）
+- **块6**：20 有效 Skill / 提示词可解析机制 / 测试交付物(D12-11)
+- **收尾**：identity 归档(D06-10)/成员、workflow_definition 完整语义校验、**fencing 递增/接管**（现写死 token=1）
+- **PG Checkpoint 自研** + 恢复语义（现为内存态 HITL 续跑）
+- **Runner 实际进程**：子进程执行/工作副本/网络隔离/凭据注入清理/输出采集（现仅 Profile+argv 内核）
+- **并行 QA 观察**：仓库中存在非本人提交（`7d99845`/`5c8415e`/`c86df44` 等）在重构安全域/补测试/改本日志，测试均绿；来源待用户确认
 
 ---
 
