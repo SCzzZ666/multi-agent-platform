@@ -7,6 +7,7 @@ RLS 的 SET LOCAL 为事务级：每个新事务前重设项目上下文（与 A
 from __future__ import annotations
 
 import uuid as _uuid
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -15,7 +16,7 @@ from ai_native.modules.capability_gateway.application import consumption
 from ai_native.modules.capability_gateway.domain.binding import compute_binding_digests
 from ai_native.modules.capability_gateway.domain.scopes import ResourceScope
 from ai_native.modules.identity_project.adapters.orm import AppUser
-from ai_native.modules.workflow_runtime.adapters.orm import NodeAttempt, Run
+from ai_native.modules.workflow_runtime.adapters.orm import NodeAttempt, Run, RunLease
 from ai_native.shared_kernel.ids import uuid7
 
 from fastapi.testclient import TestClient
@@ -63,6 +64,10 @@ def _setup():
                      fencing_token=1, state_version=0)
     db.add(na)
     db.flush()
+    # 模拟 Worker 领 Run 时建的租约（claim_next_run 建 fencing_token=1）
+    now = datetime.now(timezone.utc)
+    db.add(RunLease(run_id=run.id, lease_owner="worker-1", fencing_token=1,
+                    heartbeat_at=now, expires_at=now + timedelta(seconds=60), row_version=1))
     action_id = uuid7()
     digests = compute_binding_digests(
         project_id=str(pid), run_id=rid, workflow_version_id=str(vid), run_plan_version_id=str(uuid7()),
@@ -92,12 +97,12 @@ def _approve(db, pid, req_id, decision="APPROVE"):
     db.commit()
 
 
-def _consume(db, pid, req_id, digests, candidate):
+def _consume(db, pid, req_id, digests, candidate, *, member=True, token=1):
     project_context(db, _uuid.UUID(pid))
     result = consumption.consume_approval_and_record_intent(
         db, approval_request_id=req_id, binding_digests=digests,
         layers=_layers(_scopes()), candidate_scopes=[candidate], risk_level="HIGH",
-        idempotency_class="PROVIDER_IDEMPOTENT", fencing_token=1,
+        idempotency_class="PROVIDER_IDEMPOTENT", fencing_token=token, member=member,
     )
     db.commit()
     return result
@@ -118,6 +123,12 @@ def test_consume_after_approve_records_intent() -> None:
     assert r["dispatched"] is True and r["status"] == "COMMITTED", r
     req = _req_status(db, pid, req_id)
     assert req.status == "CONSUMED" and req.used_count == 1
+    # 审计 + 事件/outbox 与 Intent 同事务落库（§9.5 第⑥步，可追溯不中断）
+    from ai_native.modules.operations_events.adapters.orm import AuditEvent, EventOutbox
+
+    project_context(db, _uuid.UUID(pid))
+    assert db.scalar(select(AuditEvent).where(AuditEvent.project_id == _uuid.UUID(pid)).limit(1)) is not None
+    assert db.scalar(select(EventOutbox).where(EventOutbox.project_id == _uuid.UUID(pid)).limit(1)) is not None
 
 
 def test_double_consume_is_idempotent() -> None:
@@ -150,3 +161,19 @@ def test_reauth_denied_not_consumed() -> None:
     _approve(db, pid, req_id)
     r = _consume(db, pid, req_id, digests, _alt_scopes())
     assert r["dispatched"] is False and r["reason"] == "REAUTH_DENIED", r
+
+
+def test_member_removed_denies_after_approval() -> None:
+    # 审批之后、消费之前，actor 已被移出项目 → 派发前重鉴权 DENY（Approval 不提权）
+    db, pid, req_id, digests = _setup()
+    _approve(db, pid, req_id)
+    r = _consume(db, pid, req_id, digests, _scopes(), member=False)
+    assert r["dispatched"] is False and r["reason"] == "REAUTH_DENIED", r
+
+
+def test_stale_fencing_token_denied() -> None:
+    # 丢租约 Worker 用过期 token 不得提交新动作
+    db, pid, req_id, digests = _setup()
+    _approve(db, pid, req_id)
+    r = _consume(db, pid, req_id, digests, _scopes(), token=999)
+    assert r["dispatched"] is False and r["reason"] == "STALE_FENCING_TOKEN", r

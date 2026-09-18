@@ -71,6 +71,8 @@ def decide(
         if not inter:
             return AuthorizationDecision(Effect.DENY, ("INTERSECTION_EMPTY",))
 
+    if not candidate_scopes:
+        return AuthorizationDecision(Effect.DENY, ("CANDIDATE_SCOPES_EMPTY",))
     for c in candidate_scopes:
         if not any(covers(i, c) for i in inter):
             return AuthorizationDecision(Effect.DENY, ("SCOPE_NOT_GRANTED",))

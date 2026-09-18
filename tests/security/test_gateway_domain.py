@@ -89,6 +89,12 @@ def test_pdp_deny_candidate_not_covered() -> None:
     assert d.effect == Effect.DENY and "SCOPE_NOT_GRANTED" in d.reason_codes
 
 
+def test_pdp_deny_empty_candidate_scopes() -> None:
+    # 未声明任何资源范围的 Tool 调用必须 DENY（任一缺失即失败关闭）
+    d = decide(member=True, candidate_scopes=[], risk_level="LOW", **_layers())
+    assert d.effect == Effect.DENY and "CANDIDATE_SCOPES_EMPTY" in d.reason_codes
+
+
 def test_pdp_approval_required_on_high_risk() -> None:
     d = decide(member=True, candidate_scopes=[_proj(("p1",), ("read",))], risk_level="HIGH", **_layers())
     assert d.effect == Effect.APPROVAL_REQUIRED and d.required_approval_kind == "CAPABILITY"

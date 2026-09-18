@@ -1,7 +1,7 @@
 """能力审批原子消费 + InvocationIntent 落库（09 主链）。
 
-消费与建 Intent 同一短事务：锁审批行 → 校状态/摘要 → 查幂等 → 扣 used_count →
-写 Intent + 审计 → 一起提交。失败绝不派发；派发前重跑完整鉴权（PDP）。
+消费与建 Intent 同一短事务：锁审批行 → 校 fencing → 校状态/摘要 → 查幂等 → 扣 used_count →
+写 Intent + 审计 + 事件/outbox → 一起提交。失败绝不派发；派发前重跑完整鉴权（PDP，含主体-项目关系）。
 本模块不 commit，由调用方在同一事务提交。
 """
 from __future__ import annotations
@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 
 from ai_native.modules.capability_gateway.adapters.orm import ApprovalDecision, ApprovalRequest, InvocationIntent
 from ai_native.modules.capability_gateway.domain.pdp import Effect, decide
+from ai_native.modules.operations_events.application.service import append_audit, emit_event
+from ai_native.modules.workflow_runtime.adapters.orm import Run, RunLease
 from ai_native.shared_kernel.ids import uuid7
 from ai_native.shared_kernel.jcs import jcs_digest
 
@@ -72,8 +74,12 @@ def consume_approval_and_record_intent(
     risk_level: str,
     idempotency_class: str,
     fencing_token: int,
+    member: bool,
 ) -> dict:
-    """原子消费：返回 {'dispatched': bool, 'intent_id'?, 'reason'?}。失败不得发生派发副作用。"""
+    """原子消费：返回 {'dispatched': bool, 'intent_id'?, 'reason'?}。失败不得发生派发副作用。
+
+    派发前重跑完整鉴权：主体-项目关系（member，不写死）+ 九层单调交集（PDP）。
+    """
     req = db.scalar(
         select(ApprovalRequest)
         .where(ApprovalRequest.id == approval_request_id)
@@ -81,6 +87,10 @@ def consume_approval_and_record_intent(
     )
     if req is None:
         return {"dispatched": False, "reason": "NOT_FOUND"}
+    # fencing 校验：丢租约 Worker 不得提交新动作（开工地图 §5.3）
+    lease = db.scalar(select(RunLease).where(RunLease.run_id == req.run_id))
+    if lease is None or lease.fencing_token != fencing_token:
+        return {"dispatched": False, "reason": "STALE_FENCING_TOKEN"}
     # 幂等优先：同 (project, action) 已建 Intent 不重复消费（无论审批是否已 CONSUMED）
     existing = db.scalar(
         select(InvocationIntent).where(
@@ -104,8 +114,8 @@ def consume_approval_and_record_intent(
         or req.schema_digest != binding_digests["tool_schema_digest"]
     ):
         return {"dispatched": False, "reason": "APPROVAL_BINDING_MISMATCH"}
-    # 派发前重跑完整鉴权（PDP 失败关闭；Approval 只对已在交集内的动作加确认）
-    decision = decide(member=True, candidate_scopes=candidate_scopes, risk_level=risk_level, has_valid_approval=True, **layers)
+    # 派发前重跑完整鉴权（PDP 失败关闭；Approval 只对已在交集内的动作加确认；member 不写死）
+    decision = decide(member=member, candidate_scopes=candidate_scopes, risk_level=risk_level, has_valid_approval=True, **layers)
     if decision.effect != Effect.ALLOW:
         return {"dispatched": False, "reason": "REAUTH_DENIED", "decision": decision.to_dict()}
 
@@ -121,4 +131,19 @@ def consume_approval_and_record_intent(
     )
     db.add(intent)
     db.flush()
+    # 审计 + 事件/outbox 与 Intent 同事务提交（09 §9.5 第⑥步；可追溯不中断）
+    append_audit(
+        db, project_id=req.project_id, event_type="INVOCATION_INTENT_RECORDED",
+        actor={"kind": "gateway"}, subject={"intent_id": str(intent.id), "action_id": str(intent.action_id)},
+        payload={"status": intent.status, "idempotency_class": intent.idempotency_class},
+    )
+    run = db.get(Run, req.run_id)
+    if run is not None:
+        seq = int(run.event_seq or 0) + 1
+        run.event_seq = seq
+        emit_event(
+            db, run_id=run.id, project_id=req.project_id, event_seq=seq,
+            state_version=run.state_version or 0, event_type="INVOCATION_INTENT_RECORDED",
+            payload={"intent_id": str(intent.id), "action_id": str(intent.action_id)},
+        )
     return {"dispatched": True, "intent_id": str(intent.id), "status": INTENT_RECORDED_DB}
