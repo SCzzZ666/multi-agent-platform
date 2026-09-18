@@ -16,6 +16,7 @@ import uuid
 
 from ai_native.bootstrap.config import Settings
 from ai_native.bootstrap.db import SessionLocal, project_context
+from ai_native.modules.catalog_registry.application import skill_service
 from ai_native.modules.workflow_definition.adapters.orm import WorkflowVersion
 from ai_native.modules.workflow_runtime.adapters.orm import Run
 from ai_native.modules.workflow_runtime.application import worker_service
@@ -27,9 +28,19 @@ from ai_native.runtime.maf.compiler import compile_definition
 _WORKFLOWS: dict[str, tuple] = {}
 
 
-def _build_workflow(definition: dict, s: Settings):
+def _build_workflow(definition: dict, s: Settings, project_id=None):
     provider = OpenAICompatProvider("dashscope", s.dashscope_api_key, s.dashscope_base_url)
-    return compile_definition(definition, provider=provider, model="qwen-plus")
+
+    def skill_resolver(skill_version_id) -> dict | None:
+        db = SessionLocal()
+        try:
+            if project_id:
+                project_context(db, str(project_id))
+            return skill_service.resolve_skill_version(db, skill_version_id)
+        finally:
+            db.close()
+
+    return compile_definition(definition, provider=provider, model="qwen-plus", skill_resolver=skill_resolver)
 
 
 def _approval_request_id(definition: dict) -> str | None:
@@ -57,7 +68,7 @@ async def run_once(project_id) -> tuple:
         definition = db.get(WorkflowVersion, wv_id).definition_json
         db.rollback()
 
-        workflow = _build_workflow(definition, s)
+        workflow = _build_workflow(definition, s, project_id)
         try:
             result = await workflow.run({"input": "开发一个 TODO 应用"})
         except Exception as e:  # noqa: BLE001

@@ -36,9 +36,24 @@ def _manifest(package: SkillPackage) -> dict:
     return {
         "name": package.name,
         "description": package.description,
+        "instructions": package.body,
         "scripts": sorted(package.scripts),
         "references": sorted(package.references),
         "assets": sorted(package.assets),
+    }
+
+
+def resolve_skill_version(db: Session, skill_version_id) -> dict | None:
+    """skill 节点装载固定版本：返回 {name, description, instructions, version_no}。"""
+    sv = db.get(SkillVersion, skill_version_id)
+    if sv is None:
+        return None
+    m = sv.manifest or {}
+    return {
+        "name": m.get("name", ""),
+        "description": m.get("description", ""),
+        "instructions": m.get("instructions", ""),
+        "version_no": sv.version_no,
     }
 
 

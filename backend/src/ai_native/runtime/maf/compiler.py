@@ -53,7 +53,31 @@ class _YieldExecutor(Executor):
         await ctx.yield_output(data)
 
 
-def compile_definition(definition: dict, *, provider: OpenAICompatProvider, model: str) -> object:
+class _SkillExecutor(Executor):
+    """skill 节点：装载固定 skill_version_id 的指令（编译期解析并绑定，不可变）。"""
+
+    def __init__(self, node_key: str, role_ref: str, provider: OpenAICompatProvider, model: str, skill: dict) -> None:
+        super().__init__(id=node_key)
+        self._node_key = node_key
+        self._role_ref = role_ref
+        self._provider = provider
+        self._model = model
+        self._skill = skill
+
+    @handler
+    async def process(self, data: dict, ctx: WorkflowContext[dict]) -> None:
+        prompt = (
+            f"{role_prompt(self._role_ref)}\n\n"
+            f"你要遵循以下已发布 Skill 的指令（固定版本 v{self._skill.get('version_no')}）：\n"
+            f"{self._skill.get('instructions', '')}\n\n上下文: {str(data)[:1200]}"
+        )
+        resp = await self._provider.complete(
+            ModelRequest(model=self._model, messages=(("user", prompt),), max_tokens=400)
+        )
+        await ctx.send_message({**data, "last_node": self._node_key, "skill_used": self._skill.get("name"), "last_output": resp.content})
+
+
+def compile_definition(definition: dict, *, provider: OpenAICompatProvider, model: str, skill_resolver=None) -> object:
     nodes = definition["nodes"]
     edges = definition["edges"]
     executors: dict[str, Executor] = {}
@@ -75,8 +99,16 @@ def compile_definition(definition: dict, *, provider: OpenAICompatProvider, mode
             executors[key] = _TransformExecutor(key, lambda d, f=cfn: {**d, "route": f(d)})
         elif kind == "approval":
             executors[key] = ApprovalExecutor(key, n.get("approval_type", "WORKFLOW"))
-        elif kind in ("skill", "tool"):
-            raise NotImplementedError(f"{key}: {kind} 待安全底座/技能层接入")
+        elif kind == "skill":
+            sid = n.get("skill_version_id")
+            if skill_resolver is None:
+                raise ValueError(f"skill 节点需 skill_resolver: {key}")
+            skill = skill_resolver(sid)
+            if not skill:
+                raise ValueError(f"skill_version 不可解析: {sid} (node {key})")
+            executors[key] = _SkillExecutor(key, n["role_ref"], provider, model, skill)
+        elif kind == "tool":
+            raise NotImplementedError(f"{key}: tool 节点经 Gateway 派发待接")
         else:
             raise ValueError(f"{key}: 未知节点类型 {kind}")
 
