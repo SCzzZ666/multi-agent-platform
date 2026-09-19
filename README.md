@@ -93,18 +93,41 @@ uv sync --all-packages          # 装 backend + runner 全部依赖（workspace 
 ### 配置
 
 ```bash
-cp .env.example .env            # 填真实凭据；.env 已被 .gitignore 排除，绝不入库
+cp .env.example .env            # 逐项填真实值；.env 已被 .gitignore 排除，绝不入库
 ```
 
-关键项：`DATABASE_URL`、`DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` / `KIMI_API_KEY`、`ARTIFACT_STORE_DIR`。
+按 `.env.example` 逐项填：三家模型 key（`DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` / `KIMI_API_KEY`，均 OpenAI 兼容端点）、`DATABASE_URL`、`ARTIFACT_STORE_DIR`。
 
-### 起数据库 + 迁移
+### 起数据库 + 迁移 + 建账户
 
 ```bash
+# 1) 起 PostgreSQL 18 + pgvector（首次只建超级用户 ai_native）
 docker run -d --name ai-native-pg -e POSTGRES_USER=ai_native -e POSTGRES_PASSWORD=ai_native_dev \
   -e POSTGRES_DB=ai_native -p 5432:5432 pgvector/pgvector:pg18
-cd backend && uv run alembic upgrade head      # → 0013 (head)，43 表 + RLS + 不可变触发器
+
+# 2) 迁移（env.py 默认用超级用户 ai_native）→ 0013 (head)：43 表 + RLS + 不可变触发器
+cd backend && uv run alembic upgrade head
+
+# 3) 建三账户并授权（迁移/API/Worker 分离；应用连的是 api_user/worker_user）
+docker exec -i ai-native-pg psql -U ai_native -d ai_native <<'SQL'
+CREATE ROLE migrator LOGIN PASSWORD 'ai_native_dev';
+CREATE ROLE api_user LOGIN PASSWORD 'ai_native_dev';
+CREATE ROLE worker_user LOGIN PASSWORD 'ai_native_dev';
+GRANT USAGE ON SCHEMA platform TO api_user, worker_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO api_user, worker_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA platform GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO api_user, worker_user;
+SQL
 ```
+
+> RLS 纵深防御：应用在每个新事务前 `SET LOCAL app.project_id`（代码已做），`api_user` 非表所有者/非 superuser 才会被 RLS 约束。
+
+### 已知环境坑（详见 `DEVLOG.md` §1.4）
+
+- MAF 真实包名是 `agent_framework`（非 `agent_framework_core`）；模型桥接在拆分包 `agent-framework-openai`。
+- Windows 下 `alembic.ini` 必须纯 ASCII（configparser 用 GBK 读 `.ini`）。
+- PG18 `pg_available_extensions` 列名是 `default_version`（无 `extversion`）。
+- Kimi 旧型号已下线，用 `kimi-k3`（它是推理模型，CoT 在 `reasoning_content`）。
+- `uv sync` 在 workspace 根只装根项目，装成员须 `--all-packages`。
 
 ### 起后端
 
